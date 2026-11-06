@@ -8,9 +8,9 @@
 #define FIRE_MAX_HEAT 36
 #define FIRE_PALETTE_SIZE (FIRE_MAX_HEAT + 1)
 
-// Largest sideways move a cell can make in one step: turbulence (2) plus wind (2).
-// Each row carries this many padding cells per side so a shifted write never
-// leaves its row, whatever the settings.
+// Largest sideways move in one step: turbulence (2) plus wind (2). Each row
+// carries this many padding cells per side, so a shifted read never leaves
+// the grid whatever the settings.
 #define FIRE_MAX_SHIFT 4
 
 typedef struct Fire Fire;
@@ -30,9 +30,14 @@ uint16_t fire_height(const Fire *fire);
 
 // Reach: the mean heat that arrives at the top row, 0..FIRE_MAX_HEAT.
 void fire_set_reach(Fire *fire, uint8_t top_heat);
-// Wind: constant sideways drift per step, -2..2 (positive blows right).
+// Wind: sideways drift of cooling heat, -2..2 (positive blows right).
 void fire_set_wind(Fire *fire, int8_t wind);
 // Turbulence: the four sideways shifts picked at random per cell, each -2..2.
 void fire_set_turbulence(Fire *fire, const int8_t shifts[4]);
 // Fuel: extra reach added on top of the reach setting (flare), 0..FIRE_MAX_HEAT.
+// Works through the cooling, so it shows at the top only after a while.
 void fire_set_fuel(Fire *fire, uint8_t fuel);
+
+// Stoke: add heat to every cell at once (clamped), for an immediate leap that
+// then cools back on its own.
+void fire_stoke(Fire *fire, uint8_t heat);

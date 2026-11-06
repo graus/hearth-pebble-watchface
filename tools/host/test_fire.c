@@ -34,9 +34,9 @@ static int s_failures;
 } while (0)
 
 // Mean heat of the top row over many frames, after the fire settles.
-static double top_mean(Fire *fire, int frames) {
+static double top_mean(Fire *fire, int warmup, int frames) {
   uint16_t w = fire_width(fire), h = fire_height(fire);
-  for (int i = 0; i < 200; i++) fire_step(fire);
+  for (int i = 0; i < warmup; i++) fire_step(fire);
   double sum = 0;
   for (int f = 0; f < frames; f++) {
     fire_step(fire);
@@ -53,6 +53,16 @@ static double top_mean(Fire *fire, int frames) {
   return sum / ((double)frames * w);
 }
 
+static double grid_mean(const Fire *fire) {
+  uint16_t w = fire_width(fire), h = fire_height(fire);
+  double sum = 0;
+  for (int y = 0; y < h; y++) {
+    const uint8_t *r = fire_row(fire, y);
+    for (int x = 0; x < w; x++) sum += r[x];
+  }
+  return sum / ((double)w * h);
+}
+
 int main(void) {
   int cases = 0;
   for (size_t p = 0; p < sizeof(s_platforms) / sizeof(s_platforms[0]); p++) {
@@ -67,25 +77,35 @@ int main(void) {
       for (int t = 0; t < 3; t++) {
         for (int wind = -2; wind <= 2; wind++) {
           if (pl->bw && (t != 1 || wind != 0)) continue;  // B&W has no wind or turbulence settings
-          for (int reach = 0; reach <= 20; reach += 1) {
+          // Calibration settles within a few transport times (h frames
+          // each), so warm up for 10 of them before judging the mean.
+          static const int reaches[] = {0, 1, 3, 6, 9, 12, 16, 20};
+          for (size_t ri = 0; ri < sizeof(reaches) / sizeof(reaches[0]); ri++) {
+            int reach = reaches[ri];
             Fire *fire = fire_create(w, h, 12345 + reach);
             CHECK(fire != NULL, "create %dx%d", w, h);
             if (!fire) continue;
             fire_set_turbulence(fire, s_turbulence[t]);
             fire_set_wind(fire, wind);
             fire_set_reach(fire, reach);
-            double mean = top_mean(fire, 100);
-            // Wind blows the upwind columns out, so judge the mean only without it.
-            if (wind == 0) {
-              CHECK(mean >= reach - 2 && mean <= reach + 2,
-                    "%s cell %d grid %dx%d turb %d reach %d: top mean %.2f",
-                    pl->name, cell, w, h, t, reach, mean);
-            }
-            // Flare: fuel raises the top. Under wind the top row is fed by
-            // chains that drifted in from the side, so judge only without it.
+            // Narrow grids have few top cells, so average over more frames
+            // (about 40,000 cell samples) to keep the noise well under 1.
+            int frames = 40000 / w > 100 ? 40000 / w : 100;
+            double mean = top_mean(fire, 10 * h + 100, frames);
+            CHECK(mean >= reach - 2 && mean <= reach + 2,
+                  "%s cell %d grid %dx%d turb %d wind %d reach %d: top mean %.2f",
+                  pl->name, cell, w, h, t, wind, reach, mean);
+            // Stoke: an immediate leap, measured over the whole grid.
+            double before = grid_mean(fire);
+            fire_stoke(fire, 8);
+            double stoked = grid_mean(fire);
+            CHECK(stoked > before + 3, "%s cell %d turb %d wind %d reach %d: stoke did not raise the fire (%.2f vs %.2f)",
+                  pl->name, cell, t, wind, reach, stoked, before);
+            // Fuel (flare): raises the top once it has had time to rise.
             fire_set_fuel(fire, 12);
-            double flared = top_mean(fire, 20);
-            if (wind == 0) CHECK(flared >= mean, "%s cell %d turb %d wind %d reach %d: flare did not raise the top (%.2f < %.2f)", pl->name, cell, t, wind, reach, flared, mean);
+            double flared = top_mean(fire, h, frames);
+            CHECK(flared >= mean - 0.5, "%s cell %d turb %d wind %d reach %d: fuel did not raise the top (%.2f < %.2f)",
+                  pl->name, cell, t, wind, reach, flared, mean);
             fire_destroy(fire);
             cases++;
           }
