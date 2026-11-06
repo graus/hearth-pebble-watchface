@@ -82,7 +82,9 @@ void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift) {
   int y0 = top > 0 ? top : 0;
   int y1 = top + window.size.h;
   if (y1 > fb_bounds.size.h) y1 = fb_bounds.size.h;
-  int max_cell_y = fire_height(fire) - 1;
+  // Doom's rows are stretched over the whole window height.
+  int rows = fire_height(fire);
+  int win_h = window.size.h > 0 ? window.size.h : 1;
   for (int y = y0; y < y1; y++) {
     // Row info gives the real x range of each row, which matters on round
     // screens where rows are shorter than the display width.
@@ -90,8 +92,7 @@ void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift) {
     int x0 = left > info.min_x ? left : info.min_x;
     int x1 = left + window.size.w - 1;
     if (x1 > info.max_x) x1 = info.max_x;
-    int cy = (y - top) >> shift;
-    if (cy > max_cell_y) cy = max_cell_y;
+    int cy = (y - top) * rows / win_h;
     const uint8_t *cells = fire_row(fire, cy);
     uint8_t *px = info.data;
     for (int x = x0; x <= x1; x++) {
@@ -150,10 +151,11 @@ void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift) {
   int y0 = top > 0 ? top : 0;
   int y1 = top + window.size.h;
   if (y1 > fb_bounds.size.h) y1 = fb_bounds.size.h;
-  int max_cell_y = fire_height(fire) - 1;
+  // Doom's rows are stretched over the whole window height.
+  int rows = fire_height(fire);
+  int win_h = window.size.h > 0 ? window.size.h : 1;
   for (int y = y0; y < y1; y++) {
-    int cy = (y - top) >> 2;
-    if (cy > max_cell_y) cy = max_cell_y;
+    int cy = (y - top) * rows / win_h;
     const uint8_t *cells = fire_row(fire, cy);
     int py = (y - top) & 3;
     uint8_t *row = data + y * bpr + first_byte;

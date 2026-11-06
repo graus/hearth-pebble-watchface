@@ -4,8 +4,9 @@
 #include "settings.h"
 
 // Turns white digit pixels in the framebuffer into flame pixels.
-//   Color: one palette lookup per digit pixel, cells of (1 << shift) px.
-//   B&W: 4 px cells drawn with 4x4 ordered dither patterns.
+//   Color: one palette lookup per digit pixel, cells (1 << shift) px wide.
+//   B&W: 4 px wide cells drawn with 4x4 ordered dither patterns.
+// The fire's rows are stretched over the window height.
 
 // Builds the palette (color) or dither table (B&W) for the settings.
 void flames_configure(const Settings *s);

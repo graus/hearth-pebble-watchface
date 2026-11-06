@@ -1,6 +1,19 @@
 #pragma once
-// Doom-style fire simulation (https://fabiensanglard.net/doom_fire_psx/).
-// Plain C with no Pebble dependency so it can be tested on the host.
+// The PSX Doom fire (https://fabiensanglard.net/doom_fire_psx/), ported
+// faithfully. Plain C with no Pebble dependency so it can be tested on the
+// host.
+//
+// The propagation is Doom's spreadFire, unchanged. The watch face adapts
+// only what is around it:
+//   - Flame height: Doom's flames lose about half a heat level per row. The
+//     engine runs as many rows as the requested tip heat needs (from a table
+//     measured per wind), and the renderer stretches them over the digit
+//     window.
+//   - Wind: the "+ 1" in Doom's `dst = src - randIdx + 1` sets the drift
+//     (Doom's own fire leans left half a cell per row); wind changes that
+//     constant.
+//   - Edges wrap around within the row; Doom's flat array wraps into the
+//     neighboring row instead, which has no meaning on a watch.
 
 #include <stdint.h>
 
@@ -8,19 +21,19 @@
 #define FIRE_MAX_HEAT 36
 #define FIRE_PALETTE_SIZE (FIRE_MAX_HEAT + 1)
 
-// Largest sideways move in one step: turbulence (2) plus wind (2). Each row
-// carries this many padding cells per side, so a shifted read never leaves
-// the grid whatever the settings.
-#define FIRE_MAX_SHIFT 4
+// Highest tip heat the reach accepts, and the most rows that can need.
+#define FIRE_MAX_REACH 20
+#define FIRE_MAX_ROWS 96
 
 typedef struct Fire Fire;
 
-// w x h visible cells. The grid holds one extra row below them: the permanent
-// fuel row, always FIRE_MAX_HEAT, never drawn. Returns NULL on out-of-memory.
-Fire *fire_create(uint16_t w, uint16_t h, uint32_t seed);
+// w columns; the rows follow the reach (tip heat 9 to start). The grid holds
+// one extra row below them: the fuel, always FIRE_MAX_HEAT, never drawn.
+// Returns NULL on out-of-memory.
+Fire *fire_create(uint16_t w, uint32_t seed);
 void fire_destroy(Fire *fire);
 
-// Advance one frame.
+// Advance one frame: Doom's spreadFire for every pixel.
 void fire_step(Fire *fire);
 
 // Visible row y (0 = top), w cells long.
@@ -28,16 +41,14 @@ const uint8_t *fire_row(const Fire *fire, uint16_t y);
 uint16_t fire_width(const Fire *fire);
 uint16_t fire_height(const Fire *fire);
 
-// Reach: the mean heat that arrives at the top row, 0..FIRE_MAX_HEAT.
+// Reach: the mean heat at the top row (the flame tips), 0..FIRE_MAX_REACH.
+// Sets the number of rows (as does the wind).
 void fire_set_reach(Fire *fire, uint8_t top_heat);
-// Wind: sideways drift of cooling heat, -2..2 (positive blows right).
+// Wind: -2..3, added to Doom's "+ 1". 0 is Doom exactly (a slight lean to
+// the left); 1 leans as much to the right.
 void fire_set_wind(Fire *fire, int8_t wind);
-// Turbulence: the four sideways shifts picked at random per cell, each -2..2.
-void fire_set_turbulence(Fire *fire, const int8_t shifts[4]);
-// Fuel: extra reach added on top of the reach setting (flare), 0..FIRE_MAX_HEAT.
-// Works through the cooling, so it shows at the top only after a while.
-void fire_set_fuel(Fire *fire, uint8_t fuel);
 
-// Stoke: add heat to every cell at once (clamped), for an immediate leap that
-// then cools back on its own.
+// Stoke: add heat to every cell at once (clamped), for an immediate leap
+// that then burns down on its own. An outside event like Doom's own
+// "fire on/off"; the propagation is untouched.
 void fire_stoke(Fire *fire, uint8_t heat);
