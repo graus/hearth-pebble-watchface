@@ -16,9 +16,9 @@ flames.
 |---|---|---|---|
 | ![aplite](docs/screenshots/aplite.png) | ![diorite](docs/screenshots/diorite.png) | ![flint](docs/screenshots/flint.png) | ![quick view](docs/screenshots/basalt-quick-view.png) |
 
-| Blue theme, fine (emery) | Custom colors, wild turbulence, tilt wind (emery) |
-|---|---|
-| ![blue](docs/screenshots/emery-blue-fine.png) | ![custom](docs/screenshots/emery-custom.png) |
+| Tap to stoke (emery, 0.3 s after a tap) | Weather: cold and windy | Weather: warm, light wind |
+|---|---|---|
+| ![stoke](docs/screenshots/emery-stoke.png) | ![cold](docs/screenshots/emery-weather-cold.png) | ![warm](docs/screenshots/emery-weather-hot.png) |
 
 Screenshots come from the SDK emulator, which shows color the way the real
 LCD does (for example, pure `AA0000` red looks muted). Aplite's screenshot
@@ -50,6 +50,8 @@ back.
 | Color theme | Classic, Ember, Blue, Green, Purple, Custom | Classic | color |
 | Custom colors | 3 color pickers (embers, flames, hottest) | red, orange, yellow | color, Custom theme |
 | Flare on the minute | on/off | off | all |
+| Tap to stoke | on/off | on | all |
+| Weather sets the fire | on/off | off | all (wind: color) |
 | Wind follows tilt | on/off | off | color |
 | Flickering backlight | on/off | on | emery |
 | Flicker amount | 0-100 % | 100 | emery |
@@ -67,6 +69,41 @@ palette preview and a "Reset to defaults" button.
   only the minute tick wakes the watch.
 - The face also pauses while a notification covers it.
 - Lower frame rates and coarser resolutions cost less.
+
+### Tap to stoke
+
+Tap the watch or flick your wrist and the flames leap up, then settle back over
+a few seconds. It uses the accelerometer's tap events, which cost nothing
+between taps. With Animate: On tap, the same tap also wakes the face.
+
+### Weather
+
+With **Weather sets the fire** on, the phone fetches the local weather every 30
+minutes from [Open-Meteo](https://open-meteo.com/). Open-Meteo is free, needs
+no API key, and licenses its data CC BY 4.0. The weather then replaces the
+Flame height and Wind settings:
+
+- **Temperature sets the flame height.** The colder it is outside, the higher
+  the fire. Flame height is 10 at -10 °C or below and 3 at 30 °C or above,
+  linear in between. It never drops below 3, because lower heights fade the
+  hours to embers and make the time hard to read.
+- **Wind leans the flames** (color watches). The watch has no compass, so wind
+  is drawn as on a map: the east-west part of the wind, with wind toward the
+  east blowing right. An east-west part under 6 km/h is calm, 6-20 km/h is a
+  breeze (±1), and anything stronger is strong (±2).
+
+The phone does this mapping (`src/pkjs/weather.js`), so it can change without
+a watch update. The watch keeps the last weather it received across restarts.
+Location is rounded to two decimals (about 1 km) before it is sent to
+Open-Meteo. The app declares the `location` capability for this.
+
+### Why there is no "blow on the fire" (microphone)
+
+The SDK refuses microphone access to watchfaces: `mic_capture_start` returns
+`MicCaptureStartErrWatchface`, and the header says "Watchfaces can never
+stream". A breath-controlled fire would have to be a separate watchapp (with a
+Microphone grant), not this face. Tap to stoke and Wind follows tilt are the
+accelerometer alternatives.
 
 ### Flickering backlight (emery)
 
@@ -87,10 +124,29 @@ while anything else is playing.
 
 - `src/c/fire.c` is the fire engine. It is plain C with no Pebble dependency,
   so it can be tested on the host. It uses one `uint8_t` heat grid (0-36),
-  with the hidden fuel row below the visible rows. Each step makes one
-  xorshift32 per cell: bits 16-17 pick the sideways shift and bits 20-29 the
-  cooling. Rows padded by the largest possible shift (4) keep shifted writes
-  inside their row.
+  with a hidden fuel row below the visible rows, and one xorshift32 per cell
+  per frame: bits 20-29 decide cooling and bits 16-17 the sideways shift.
+  - **Coupled drift.** Only heat that cools drifts sideways, wind included;
+    hot cores rise straight. This idea comes from
+    [filipedeschamps/doom-fire-algorithm](https://github.com/filipedeschamps/doom-fire-algorithm),
+    where one random number is both the decay and the offset. It turns
+    uncorrelated speckle into rising strands with dark tongues between them,
+    and it makes wind lean the flames instead of blowing the whole fire off
+    the upwind edge.
+  - **Two passes per row**, so nothing depends on loop direction. First,
+    straight-rising heat lands and is marked, and a cell whose heat drifted
+    away cools its old value. Then drifting heat lands only on unmarked cells.
+    In a single left-to-right pass, heat drifting left always wins collisions
+    and heat drifting right always loses, so wind would heat one side and cool
+    the other.
+  - **Self-calibration.** Those collision rules change the effective cooling by
+    an amount that depends on turbulence and grid height (host-measured gains
+    0.66-1.05). The engine therefore sums the top row as it goes, and once per
+    transport time (h frames) nudges a cooling gain so the top sits at the
+    requested reach. This costs one add per top-row cell. It pauses during a
+    flare or stoke.
+  - The rows are padded by the largest possible shift (4), so writes need no
+    bounds checks.
 - `src/c/layout.c` centers each row by its real width, and centers the block
   in the unobstructed bounds (shrinking the row gap first when space is
   short). It derives the flame window from the worst-case metrics in
@@ -115,6 +171,8 @@ while anything else is playing.
 | Reach near 0 | `36 - top_heat` | aims up to 2 levels lower when `top_heat < 2` | The clamp at 0 lifts the mean of a nearly dead top row. |
 | B&W dither ramp | not specified | no dots at heat 6 or below, solid at 30 or above, linear between | A linear 0-36 ramp reads as a halftone gradient. This one gives a solid base with broken, flickering tips. |
 | Backlight center | 227 fixed | running average, starting at 227 | Keeps the flicker centered when reach or resolution moves the mean heat. |
+| Shift/cooling coupling | independent bits | only cooled heat drifts; two-pass rows; self-calibrating gain | Independent draws gave speckle, not flames (see "How it works"). |
+| Flare on the minute | +fuel for 1 s | +8 heat to every cell at once, plus fuel for 1 s | Fuel alone acts through the cooling and took about h frames to show; the face barely flared. |
 
 Everything else uses the spec's values: digit font sizes 59/59/110/104, gaps
 8/8/16/15 and 14/14/28/26, top heat 9, shift table `{-1, 0, 0, 1}`, 10 fps
@@ -134,6 +192,11 @@ each resolution where it applies:
 | chalk | 54,120 | 47,180 | 54,072 | 55,896 |
 | emery | 110,708 | 86,440 | 110,368 | 116,508 |
 | gabbro | 113,268 | 92,060 | 113,228 | 118,716 |
+
+These figures were measured before the coupled-drift engine. Its per-row
+drift queue and mark bits add about 4.1 bytes per grid column: under 700
+bytes even for emery's fine grid (162 columns). Basalt measured 54,552 free
+with the new engine.
 
 Fine fits comfortably everywhere, so no platform hides it. Ten resolution
 switches on emery returned to exactly the same free heap at each size, so
@@ -179,10 +242,34 @@ make -C tools/host
 
 These tests build the engine with `-fsanitize=address,undefined`. They step
 the fire at every platform's grid size, for every turbulence and wind setting
-and every reach from 0 to 20. They check that no write goes out of bounds,
-that heat stays within 0-36, and that the mean heat of the top row is within
-2 of the reach (without wind). They also check that a flare raises the top
-and that degenerate grids do not crash.
+and reaches from 0 to 20, after letting calibration settle. They check that
+no write goes out of bounds, that heat stays within 0-36, and that the mean
+heat of the top row is within 2 of the reach, with any wind. They also check
+that stoke and fuel raise the fire and that degenerate grids do not crash.
+
+```sh
+node tools/host/test_weather.js
+```
+
+This tests the phone-side weather mapping against a response in
+Open-Meteo's format.
+
+## Credits
+
+- **[Fireplace](https://github.com/ygalanter/fireplace)** by Yuri Galanter
+  (MIT) is the original Pebble watch face with flames seen through the time
+  digits. Hearth is a from-scratch reimplementation of that idea. It simulates
+  the fire instead of playing recorded frames, and shares no code or assets
+  with Fireplace.
+- **[doom-fire-algorithm](https://github.com/filipedeschamps/doom-fire-algorithm)**
+  by Filipe Deschamps (MIT) inspired the coupled decay and drift (see "How it
+  works"). Hearth already used its efficiency ideas: one in-place array, one
+  random number per pixel and a palette index per heat level. It goes further
+  with xorshift32 instead of `Math.random`, row-major loops, no per-pixel
+  function calls, and padding instead of bounds checks.
+- [Fabien Sanglard's write-up](https://fabiensanglard.net/doom_fire_psx/) of
+  the PSX Doom fire.
+- Weather data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
 
 ## License notes
 
