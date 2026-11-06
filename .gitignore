@@ -1,0 +1,6 @@
+build/
+node_modules/
+.lock-waf*
+tools/host/test_fire
+__pycache__/
+package-lock.json

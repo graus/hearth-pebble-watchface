@@ -1,0 +1,65 @@
+{
+  "name": "hearth",
+  "author": "graus",
+  "version": "1.0.0",
+  "keywords": ["pebble-app"],
+  "private": true,
+  "dependencies": {
+    "@rebble/clay": "^1.1.0"
+  },
+  "pebble": {
+    "displayName": "Hearth",
+    "uuid": "f651e6e0-c9d1-41c2-8cdf-bddf4e1bafec",
+    "sdkVersion": "3",
+    "projectType": "native",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk",
+      "diorite",
+      "emery",
+      "flint",
+      "gabbro"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "capabilities": [
+      "configurable"
+    ],
+    "messageKeys": [
+      "FrameRate",
+      "Animate",
+      "Resolution",
+      "FlameHeight",
+      "Wind",
+      "Turbulence",
+      "Theme",
+      "CustomEmber",
+      "CustomFlame",
+      "CustomHot",
+      "Flare",
+      "TiltWind",
+      "Backlight",
+      "Flicker",
+      "Crackle",
+      "Volume"
+    ],
+    "resources": {
+      "media": [
+        { "type": "bitmap", "name": "MENU_ICON", "file": "images/menu_icon.png", "menuIcon": true },
+        { "type": "bitmap", "name": "DIGIT_0", "file": "digits/0.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" },
+        { "type": "bitmap", "name": "DIGIT_1", "file": "digits/1.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" },
+        { "type": "bitmap", "name": "DIGIT_2", "file": "digits/2.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" },
+        { "type": "bitmap", "name": "DIGIT_3", "file": "digits/3.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" },
+        { "type": "bitmap", "name": "DIGIT_4", "file": "digits/4.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" },
+        { "type": "bitmap", "name": "DIGIT_5", "file": "digits/5.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" },
+        { "type": "bitmap", "name": "DIGIT_6", "file": "digits/6.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" },
+        { "type": "bitmap", "name": "DIGIT_7", "file": "digits/7.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" },
+        { "type": "bitmap", "name": "DIGIT_8", "file": "digits/8.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" },
+        { "type": "bitmap", "name": "DIGIT_9", "file": "digits/9.png", "memoryFormat": "1Bit", "spaceOptimization": "memory" }
+      ]
+    }
+  }
+}
