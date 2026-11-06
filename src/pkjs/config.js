@@ -123,10 +123,30 @@ module.exports = [
       },
       {
         type: 'toggle',
+        messageKey: 'Stoke',
+        label: 'Tap to stoke',
+        defaultValue: true,
+        description: 'Tap the watch or flick your wrist and the flames leap up.'
+      },
+      {
+        type: 'toggle',
         messageKey: 'TiltWind',
         label: 'Wind follows tilt',
         defaultValue: false,
         capabilities: ['COLOR']
+      }
+    ]
+  },
+  {
+    type: 'section',
+    items: [
+      { type: 'heading', defaultValue: 'Weather' },
+      {
+        type: 'toggle',
+        messageKey: 'Weather',
+        label: 'Weather sets the fire',
+        defaultValue: false,
+        description: 'The colder it is outside, the higher the flames. On color watches the flames also lean with the local wind (east is right, as on a map). Replaces Flame height and Wind. Uses your location every 30 minutes. Weather data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0).'
       }
     ]
   },

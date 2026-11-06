@@ -8,7 +8,7 @@ module.exports = function() {
     FrameRate: '10', FlameHeight: 5, Resolution: '1', Wind: 0, Turbulence: '1',
     Theme: '0', CustomEmber: 0xFF0000, CustomFlame: 0xFF5500, CustomHot: 0xFFFF00,
     Animate: '0', Flare: false, TiltWind: false, Backlight: true, Flicker: 100,
-    Crackle: true, Volume: 3
+    Crackle: true, Volume: 3, Stoke: true, Weather: false
   };
 
   // Same stops as src/c/flames.c, for the gradient preview.

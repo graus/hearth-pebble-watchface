@@ -1,5 +1,6 @@
 #include "settings.h"
 
+#include <stddef.h>
 #include <stdlib.h>
 
 #define SETTINGS_KEY 1
@@ -20,6 +21,8 @@ static const Settings s_defaults = {
   .flicker = 100,
   .crackle = 1,
   .volume = 3,
+  .stoke = 1,
+  .weather = 0,
 };
 
 static int clamp(int v, int lo, int hi) {
@@ -58,6 +61,8 @@ static void sanitize(Settings *s) {
   s->flicker = clamp(s->flicker, 0, 100);
   s->crackle = !!s->crackle;
   s->volume = clamp(s->volume, 1, 10);
+  s->stoke = !!s->stoke;
+  s->weather = !!s->weather;
 }
 
 void settings_load(Settings *s) {
@@ -67,6 +72,12 @@ void settings_load(Settings *s) {
     int read = persist_read_data(SETTINGS_KEY, &stored, sizeof(stored));
     if (read == (int)sizeof(stored) && stored.version == SETTINGS_VERSION) {
       *s = stored;
+    } else if (read == (int)offsetof(Settings, stoke) && stored.version == 1) {
+      // Version 1 lacked the trailing stoke and weather fields: keep the
+      // rest and take the defaults for those.
+      *s = stored;
+      s->stoke = s_defaults.stoke;
+      s->weather = s_defaults.weather;
     }
   }
   sanitize(s);
@@ -121,10 +132,12 @@ bool settings_from_message(Settings *s, DictionaryIterator *iter) {
   if (read_int(iter, MESSAGE_KEY_Flicker, &v)) { s->flicker = clamp(v, 0, 100); any = true; }
   if (read_int(iter, MESSAGE_KEY_Crackle, &v)) { s->crackle = v != 0; any = true; }
   if (read_int(iter, MESSAGE_KEY_Volume, &v)) { s->volume = clamp(v, 1, 10); any = true; }
+  if (read_int(iter, MESSAGE_KEY_Stoke, &v)) { s->stoke = v != 0; any = true; }
+  if (read_int(iter, MESSAGE_KEY_Weather, &v)) { s->weather = v != 0; any = true; }
   return any;
 }
 
-uint8_t settings_top_heat(const Settings *s) {
+uint8_t settings_top_heat(uint8_t flame_height) {
   // 1 -> 0, 5 -> 9, 10 -> 20, rounded.
-  return ((s->flame_height - 1) * 20 + 4) / 9;
+  return ((flame_height - 1) * 20 + 4) / 9;
 }

@@ -8,11 +8,17 @@
 #include "flames.h"
 #include "layout.h"
 #include "settings.h"
+#include "weather.h"
 
 #define IDLE_TIMEOUT_MS 30000
 // Extra reach while the digits flare on the minute, and for how long.
 #define FLARE_FUEL 12
+#define FLARE_HEAT 8
 #define FLARE_MS 1000
+// A tap or shake stokes the fire the same way, a little longer.
+#define STOKE_MS 1500
+// How often to ask the phone for weather, in minutes past the hour.
+#define WEATHER_EVERY_MIN 30
 // Tilt: accelerometer x (milli-g) per unit of wind.
 #define TILT_PER_WIND 350
 // Log the average frame cost once, after this many frames.
@@ -78,14 +84,36 @@ static uint8_t wanted_cell_shift(void) {
 #endif
 }
 
+// With the Weather setting on (and weather received), the local weather
+// replaces the Flame height and Wind settings.
+static uint8_t flame_height(void) {
+  int8_t wind;
+  uint8_t height;
+  if (s_settings.weather && weather_get(&wind, &height)) {
+    return height;
+  }
+  return s_settings.flame_height;
+}
+
+#if defined(PBL_COLOR)
+static int8_t base_wind(void) {
+  int8_t wind;
+  uint8_t height;
+  if (s_settings.weather && weather_get(&wind, &height)) {
+    return wind;
+  }
+  return s_settings.wind;
+}
+#endif
+
 static void configure_fire(void) {
   if (!s_fire) {
     return;
   }
-  fire_set_reach(s_fire, settings_top_heat(&s_settings));
+  fire_set_reach(s_fire, settings_top_heat(flame_height()));
 #if defined(PBL_COLOR)
   fire_set_turbulence(s_fire, s_turbulence_tables[s_settings.turbulence]);
-  fire_set_wind(s_fire, s_settings.wind);
+  fire_set_wind(s_fire, base_wind());
 #endif
   fire_set_fuel(s_fire, s_flare_frames ? FLARE_FUEL : 0);
 }
@@ -200,7 +228,7 @@ static void update_tilt_subscription(void) {
     accel_data_service_subscribe(0, NULL);
   } else if (!want && s_tilt_subscribed) {
     accel_data_service_unsubscribe();
-    if (s_fire) fire_set_wind(s_fire, s_settings.wind);
+    if (s_fire) fire_set_wind(s_fire, base_wind());
   }
   s_tilt_subscribed = want;
 #endif
@@ -220,7 +248,7 @@ static void frame(void *context) {
   if (s_tilt_subscribed) {
     AccelData accel;
     if (accel_service_peek(&accel) == 0) {
-      fire_set_wind(s_fire, s_settings.wind + accel.x / TILT_PER_WIND);
+      fire_set_wind(s_fire, base_wind() + accel.x / TILT_PER_WIND);
     }
   }
 #endif
@@ -291,6 +319,20 @@ static void update_running(void) {
   update_tilt_subscription();
 }
 
+// The flames leap at once (stoke), are fed extra fuel for a moment, then
+// settle back on their own.
+static void flare(uint32_t ms) {
+  if (!s_running || !s_fire) {
+    return;
+  }
+  uint16_t frames = (uint32_t)s_settings.fps * ms / 1000;
+  if (frames > s_flare_frames) {
+    s_flare_frames = frames;
+  }
+  fire_stoke(s_fire, FLARE_HEAT);
+  fire_set_fuel(s_fire, FLARE_FUEL);
+}
+
 static void idle_timeout(void *context) {
   s_idle_timer = NULL;
   s_awake = false;
@@ -308,7 +350,12 @@ static void wake(void) {
 }
 
 static void tap_handler(AccelAxisType axis, int32_t direction) {
-  wake();
+  if (s_settings.animate == AnimateOnTap) {
+    wake();
+  }
+  if (s_settings.stoke) {
+    flare(STOKE_MS);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -323,18 +370,22 @@ static void apply_settings(void) {
     configure_fire();
   }
 
-  // Animate mode. Tap mode starts awake so the change is visible at once.
+  // Taps wake the face (Animate: On tap) and stoke it. The tap service is
+  // event driven, so listening costs no battery between taps.
+  bool want_taps = s_settings.animate == AnimateOnTap || s_settings.stoke;
+  if (want_taps && !s_tap_subscribed) {
+    accel_tap_service_subscribe(tap_handler);
+    s_tap_subscribed = true;
+  } else if (!want_taps && s_tap_subscribed) {
+    accel_tap_service_unsubscribe();
+    s_tap_subscribed = false;
+  }
+  // Tap mode starts awake so the change is visible at once.
   if (s_settings.animate == AnimateOnTap) {
-    if (!s_tap_subscribed) {
-      accel_tap_service_subscribe(tap_handler);
-      s_tap_subscribed = true;
+    if (!s_idle_timer) {
       wake();
     }
   } else {
-    if (s_tap_subscribed) {
-      accel_tap_service_unsubscribe();
-      s_tap_subscribed = false;
-    }
     if (s_idle_timer) {
       app_timer_cancel(s_idle_timer);
       s_idle_timer = NULL;
@@ -353,10 +404,14 @@ static void apply_settings(void) {
 }
 
 static void inbox_received(DictionaryIterator *iter, void *context) {
-  if (!settings_from_message(&s_settings, iter)) {
+  bool weather = weather_from_message(iter);
+  bool settings = settings_from_message(&s_settings, iter);
+  if (!weather && !settings) {
     return;
   }
-  settings_save(&s_settings);
+  if (settings) {
+    settings_save(&s_settings);
+  }
   if (s_focused) {
     apply_settings();
   } else {
@@ -373,9 +428,11 @@ static void inbox_dropped(AppMessageResult reason, void *context) {
 
 static void tick_handler(struct tm *t, TimeUnits changed) {
   update_time(t);
-  if (s_settings.flare && s_running && s_fire) {
-    s_flare_frames = (uint32_t)s_settings.fps * FLARE_MS / 1000;
-    fire_set_fuel(s_fire, FLARE_FUEL);
+  if (s_settings.flare) {
+    flare(FLARE_MS);
+  }
+  if (s_settings.weather && t->tm_min % WEATHER_EVERY_MIN == 0) {
+    weather_request();
   }
 }
 
@@ -419,6 +476,7 @@ static void window_unload(Window *window) {
 static void init(void) {
   srand(time(NULL));
   settings_load(&s_settings);
+  weather_load();
   flames_configure(&s_settings);
 #if defined(PBL_SPEAKER)
   crackle_init();
@@ -445,8 +503,9 @@ static void init(void) {
 
   app_message_register_inbox_received(inbox_received);
   app_message_register_inbox_dropped(inbox_dropped);
-  // 16 int32 keys at about 11 bytes each, plus the dictionary header.
-  const uint32_t inbox = 16 * 11 + 16;
+  // 20 int32 keys (18 settings, 2 weather) at about 11 bytes each, plus the
+  // dictionary header.
+  const uint32_t inbox = 20 * 11 + 16;
   if (app_message_open(inbox, 64) != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "app_message_open failed; settings unavailable");
   }

@@ -3,7 +3,7 @@
 
 // Bump when the struct layout changes; stored settings with another version
 // are ignored and the defaults used instead.
-#define SETTINGS_VERSION 1
+#define SETTINGS_VERSION 2
 
 typedef enum {
   AnimateAlways = 0,
@@ -43,6 +43,8 @@ typedef struct __attribute__((__packed__)) {
   uint8_t flicker;        // 0..100 % (emery only)
   uint8_t crackle;        // bool (emery, flint)
   uint8_t volume;         // 1..10 (emery, flint)
+  uint8_t stoke;          // bool: a tap or shake makes the flames leap
+  uint8_t weather;        // bool: local weather sets flame height and wind
 } Settings;
 
 // Loads stored settings or the defaults.
@@ -53,5 +55,5 @@ void settings_save(const Settings *s);
 // value was found.
 bool settings_from_message(Settings *s, DictionaryIterator *iter);
 
-// Top heat for the fire engine from the 1..10 flame height.
-uint8_t settings_top_heat(const Settings *s);
+// Top heat for the fire engine from a 1..10 flame height.
+uint8_t settings_top_heat(uint8_t flame_height);
