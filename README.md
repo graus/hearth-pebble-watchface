@@ -2,9 +2,9 @@
 
 A Pebble watch face that shows the time as four large digits (HH over MM), each
 one a window onto a live fire. Wherever a digit is you see flames; everywhere
-else the screen is black. The fire is simulated with the
-[Doom fire algorithm](https://fabiensanglard.net/doom_fire_psx/) on every
-platform. On B&W watches it is drawn with ordered dithering. Emery and Flint
+else the screen is black. The fire is the
+[PSX Doom fire](https://fabiensanglard.net/doom_fire_psx/), ported faithfully
+and simulated live on every platform. On B&W watches it is drawn with ordered dithering. Emery and Flint
 can add a crackling sound, and Emery's RGB backlight can flicker with the
 flames.
 
@@ -16,9 +16,9 @@ flames.
 |---|---|---|---|
 | ![aplite](docs/screenshots/aplite.png) | ![diorite](docs/screenshots/diorite.png) | ![flint](docs/screenshots/flint.png) | ![quick view](docs/screenshots/basalt-quick-view.png) |
 
-| Tap to stoke (emery, 0.3 s after a tap) | Weather: cold and windy | Weather: warm, light wind |
+| Tap to stoke (emery, 0.3 s after a tap) | Flame height follows the sun: night | ...and day |
 |---|---|---|
-| ![stoke](docs/screenshots/emery-stoke.png) | ![cold](docs/screenshots/emery-weather-cold.png) | ![warm](docs/screenshots/emery-weather-hot.png) |
+| ![stoke](docs/screenshots/emery-stoke.png) | ![night](docs/screenshots/emery-sun-night.png) | ![day](docs/screenshots/emery-sun-day.png) |
 
 Screenshots come from the SDK emulator, which shows color the way the real
 LCD does (for example, pure `AA0000` red looks muted). Aplite's screenshot
@@ -44,14 +44,14 @@ back.
 | Frame rate | 5, 8, 10, 15, 20 fps | 10 | all |
 | Animate | Always, On tap | Always | all |
 | Resolution | Fine 1 px, Normal 2 px, Chunky 4 px | Normal | color |
-| Flame height | 1-10 (top heat 0-20, 5 = 9) | 5 | all |
-| Wind | -2 .. +2 | 0 | color |
-| Turbulence | Calm, Normal, Wild | Normal | color |
+| Flame height | 1-10 (tip heat 0-20, 5 = 9) | 5 | all |
+| Flame height follows | the setting, outside temperature, the sun | the setting | all |
+| Wind | -2 .. +2 (0 is Doom's own lean) | 0 | color |
+| Wind follows the weather | on/off | off | color |
 | Color theme | Classic, Ember, Blue, Green, Purple, Custom | Classic | color |
 | Custom colors | 3 color pickers (embers, flames, hottest) | red, orange, yellow | color, Custom theme |
 | Flare on the minute | on/off | off | all |
 | Tap to stoke | on/off | on | all |
-| Weather sets the fire | on/off | off | all (wind: color) |
 | Wind follows tilt | on/off | off | color |
 | Flickering backlight | on/off | on | emery |
 | Flicker amount | 0-100 % | 100 | emery |
@@ -76,26 +76,36 @@ Tap the watch or flick your wrist and the flames leap up, then settle back over
 a few seconds. It uses the accelerometer's tap events, which cost nothing
 between taps. With Animate: On tap, the same tap also wakes the face.
 
-### Weather
+### Sky: sun and weather
 
-With **Weather sets the fire** on, the phone fetches the local weather every 30
-minutes from [Open-Meteo](https://open-meteo.com/). Open-Meteo is free, needs
-no API key, and licenses its data CC BY 4.0. The weather then replaces the
-Flame height and Wind settings:
+**Flame height follows** can take the flame height from outside:
 
-- **Temperature sets the flame height.** The colder it is outside, the higher
-  the fire. Flame height is 10 at -10 °C or below and 3 at 30 °C or above,
-  linear in between. It never drops below 3, because lower heights fade the
-  hours to embers and make the time hard to read.
-- **Wind leans the flames** (color watches). The watch has no compass, so wind
-  is drawn as on a map: the east-west part of the wind, with wind toward the
-  east blowing right. An east-west part under 6 km/h is calm, 6-20 km/h is a
-  breeze (±1), and anything stronger is strong (±2).
+- **The sun.** Low flames by day (height 3) and high at night (height 8). The
+  height ramps linearly over an hour centered on sunrise and on sunset, so
+  the fire builds up through dusk and dies down through dawn. The phone
+  computes sunrise and sunset from your location with the sunrise equation
+  that NOAA's calculator uses (accurate to a few minutes, no network). Polar
+  night and midnight sun are handled. The watch recomputes the height every
+  minute, so it follows the sun even when the phone is away.
+- **Outside temperature.** The colder it is, the higher the fire: height 10 at
+  -10 °C or below, 3 at 30 °C or above, linear in between. It never drops
+  below 3, because lower heights fade the hours to embers and make the time
+  hard to read.
 
-The phone does this mapping (`src/pkjs/weather.js`), so it can change without
-a watch update. The watch keeps the last weather it received across restarts.
-Location is rounded to two decimals (about 1 km) before it is sent to
-Open-Meteo. The app declares the `location` capability for this.
+**Wind follows the weather** (color watches) leans the flames with the local
+wind. The watch has no compass, so wind is drawn as on a map: the east-west
+part of the wind, with wind toward the east blowing right. An east-west part
+under 6 km/h counts as calm (0), 6-20 km/h as a breeze (±1), and anything
+stronger as strong (±2).
+
+Weather comes from [Open-Meteo](https://open-meteo.com/): free, no API key,
+data licensed CC BY 4.0. The phone asks for location every 30 minutes, only
+while one of these settings is on, and rounds it to two decimals (about 1 km)
+before sending it to Open-Meteo. Sun times never leave the phone. The phone
+maps everything to the face's units (`src/pkjs/sky.js`), so the mapping can
+change without a watch update. The watch keeps the last values across
+restarts, and falls back to the Flame height and Wind settings until the
+first values arrive. The app declares the `location` capability.
 
 ### Why there is no "blow on the fire" (microphone)
 
@@ -122,31 +132,30 @@ while anything else is playing.
 
 ## How it works
 
-- `src/c/fire.c` is the fire engine. It is plain C with no Pebble dependency,
-  so it can be tested on the host. It uses one `uint8_t` heat grid (0-36),
-  with a hidden fuel row below the visible rows, and one xorshift32 per cell
-  per frame: bits 20-29 decide cooling and bits 16-17 the sideways shift.
-  - **Coupled drift.** Only heat that cools drifts sideways, wind included;
-    hot cores rise straight. This idea comes from
-    [filipedeschamps/doom-fire-algorithm](https://github.com/filipedeschamps/doom-fire-algorithm),
-    where one random number is both the decay and the offset. It turns
-    uncorrelated speckle into rising strands with dark tongues between them,
-    and it makes wind lean the flames instead of blowing the whole fire off
-    the upwind edge.
-  - **Two passes per row**, so nothing depends on loop direction. First,
-    straight-rising heat lands and is marked, and a cell whose heat drifted
-    away cools its old value. Then drifting heat lands only on unmarked cells.
-    In a single left-to-right pass, heat drifting left always wins collisions
-    and heat drifting right always loses, so wind would heat one side and cool
-    the other.
-  - **Self-calibration.** Those collision rules change the effective cooling by
-    an amount that depends on turbulence and grid height (host-measured gains
-    0.66-1.05). The engine therefore sums the top row as it goes, and once per
-    transport time (h frames) nudges a cooling gain so the top sits at the
-    requested reach. This costs one add per top-row cell. It pauses during a
-    flare or stoke.
-  - The rows are padded by the largest possible shift (4), so writes need no
-    bounds checks.
+- `src/c/fire.c` is the fire engine: Doom's `spreadFire`, ported faithfully
+  from [Fabien Sanglard's DoomFirePSX](https://github.com/fabiensanglard/DoomFirePSX)
+  (quoted in the source). It uses the same column-by-column loop, the same
+  rule (a zero pixel blanks the one above; otherwise
+  `dst = src - randIdx + 1` and `pixel - (randIdx & 1)`), and the same
+  non-uniform offset distribution as `Math.round(Math.random() * 3)` (0 and 3
+  half as likely as 1 and 2). The only differences are xorshift32 instead of
+  `Math.random`, and edge wrap within the row instead of into the next row.
+  It is plain C with no Pebble dependency, so it can be tested on the host.
+
+  The watch face adapts only what is around the algorithm:
+  - **Flame height = number of rows.** Doom decays about half a level per
+    row, so the engine runs as many rows as the requested tip heat needs
+    (63 for the default tip heat 9). The renderer stretches those rows over
+    the digit window, whatever its height. The decay per row depends on the
+    `+ 1`, because Doom's column order lets heat written to the right spread
+    again in the same frame, so rows come from a table measured per wind on
+    the host. Changing the flame height (from the setting, the sun or the
+    temperature) only changes the row count. The algorithm is untouched.
+  - **Wind = Doom's `+ 1`.** Wind 0 is Doom exactly, which leans left half a
+    cell per row. Wind 1 leans as much to the right, and wind ±2 leans further.
+  - **Stoke and the minute flare** add heat to every cell at once, which
+    Doom's fire then burns down. This is an event from outside, like Doom's
+    own "fire on/off".
 - `src/c/layout.c` centers each row by its real width, and centers the block
   in the unobstructed bounds (shrinking the row gap first when space is
   short). It derives the flame window from the worst-case metrics in
@@ -162,21 +171,24 @@ while anything else is playing.
 - `src/c/backlight.c` (emery) handles the backlight and `src/c/crackle.c`
   (emery, flint) handles the sound.
 
-### Tuned values (changed from the spec's host-simulation starting points)
+### Departures from the spec
 
-| What | Spec start | Final | Why |
+The spec's engine (cooling as a chance in 64ths, a 4-entry shift table,
+turbulence) is replaced by the faithful Doom algorithm above, at the owner's
+request. With that change:
+
+| What | Spec | Now | Why |
 |---|---|---|---|
-| Cooling resolution | 64ths | 1024ths, rounded | On a 178-row grid, 64ths truncate 12.9 to 12 and the top overshoots by 2-3 levels. |
-| Cooling on short grids | whole + fraction | a quantum of `ceil(mean)` with chance `mean / quantum` | B&W's 25-row grid needs about 1.08 levels per step. Losing 1 every step gives a smooth gradient with no flames in it. |
-| Reach near 0 | `36 - top_heat` | aims up to 2 levels lower when `top_heat < 2` | The clamp at 0 lifts the mean of a nearly dead top row. |
+| Flame height | cooling chance per row | number of Doom rows, stretched over the window | Keeps Doom's rule untouched. |
+| Turbulence setting | Calm, Normal, Wild | removed | Doom has one fixed offset distribution. |
+| Wind | added to a shift table | Doom's `+ 1` constant | Same reason. Wind 0 is Doom's own lean. |
+| Flare on the minute | +fuel for about 1 s | +8 heat to every cell at once | Doom's fuel row is already at full heat. |
+| Grid edges | padding cells, written but never read | wrap within the row | As close to Doom's own wrap as a 2-D grid allows. |
 | B&W dither ramp | not specified | no dots at heat 6 or below, solid at 30 or above, linear between | A linear 0-36 ramp reads as a halftone gradient. This one gives a solid base with broken, flickering tips. |
-| Backlight center | 227 fixed | running average, starting at 227 | Keeps the flicker centered when reach or resolution moves the mean heat. |
-| Shift/cooling coupling | independent bits | only cooled heat drifts; two-pass rows; self-calibrating gain | Independent draws gave speckle, not flames (see "How it works"). |
-| Flare on the minute | +fuel for 1 s | +8 heat to every cell at once, plus fuel for 1 s | Fuel alone acts through the cooling and took about h frames to show; the face barely flared. |
+| Backlight center | 227 fixed | running average, starting at 227 | Keeps the flicker centered when the flame height moves the mean heat. |
 
 Everything else uses the spec's values: digit font sizes 59/59/110/104, gaps
-8/8/16/15 and 14/14/28/26, top heat 9, shift table `{-1, 0, 0, 1}`, 10 fps
-and 2 px cells.
+8/8/16/15 and 14/14/28/26, tip heat 9, 10 fps and 2 px cells.
 
 ## Measurements (emulator, SDK 4.44)
 
@@ -185,35 +197,31 @@ each resolution where it applies:
 
 | Platform | Default | Fine 1 px | Normal 2 px | Chunky 4 px |
 |---|---|---|---|---|
-| aplite | 15,064 | - | - | (B&W, 4 px) |
-| diorite | 56,612 | - | - | (B&W, 4 px) |
-| flint | 55,652 | - | - | (B&W, 4 px) |
-| basalt | 54,120 | 47,180 | 54,072 | 55,896 |
-| chalk | 54,120 | 47,180 | 54,072 | 55,896 |
-| emery | 110,708 | 86,440 | 110,368 | 116,508 |
-| gabbro | 113,268 | 92,060 | 113,228 | 118,716 |
+| aplite | 12,500 | - | - | (B&W, 4 px) |
+| diorite | 54,052 | - | - | (B&W, 4 px) |
+| flint | 53,132 | - | - | (B&W, 4 px) |
+| basalt | 51,316 | 47,144 | 51,316 | 53,352 |
+| chalk | 51,488 | not measured | 51,488 | not measured |
+| emery | 109,996 | 102,140 | 109,996 | 113,876 |
+| gabbro | 112,392 | 105,020 | 112,392 | 116,080 |
 
-These figures were measured before the coupled-drift engine. Its per-row
-drift queue and mark bits add about 4.1 bytes per grid column: under 700
-bytes even for emery's fine grid (162 columns). Basalt measured 54,552 free
-with the new engine.
-
-Fine fits comfortably everywhere, so no platform hides it. Ten resolution
-switches on emery returned to exactly the same free heap at each size, so
-there is no leak.
+The engine always allocates its maximum number of rows (97), so changing the
+flame height never allocates memory. Fine fits comfortably everywhere, so no
+platform hides it. Switching resolutions back and forth returned to exactly
+the same free heap at each size, so there is no leak.
 
 Average time per frame over the first 100 frames, default settings, as
 logged by the face:
 
 | Platform | Fire step | Draw |
 |---|---|---|
-| aplite | 0.01-0.02 ms | 0.40 ms |
-| diorite | 0.08-0.12 ms | 0.36-0.50 ms |
-| flint | < 0.01 ms | 0.22-0.45 ms |
-| basalt | 0.07 ms | 0.44 ms |
-| chalk | 0.04 ms | 0.48 ms |
-| emery | 0.04-0.62 ms | 0.85-1.04 ms |
-| gabbro | 0.01 ms | 0.92 ms |
+| aplite | 0.02 ms | 0.32 ms |
+| diorite | 0.03 ms | 0.28 ms |
+| flint | 0.02 ms | 0.21 ms |
+| basalt | 0.12 ms | 0.36 ms |
+| chalk | 0.15 ms | 0.32 ms |
+| emery | 0.26 ms | 1.05 ms |
+| gabbro | 0.02 ms | 0.61 ms |
 
 QEMU does not model the real CPU's speed and `time_ms` is coarse, so treat
 these figures as relative only. They should be measured again on hardware.
@@ -241,18 +249,20 @@ make -C tools/host
 ```
 
 These tests build the engine with `-fsanitize=address,undefined`. They step
-the fire at every platform's grid size, for every turbulence and wind setting
-and reaches from 0 to 20, after letting calibration settle. They check that
-no write goes out of bounds, that heat stays within 0-36, and that the mean
-heat of the top row is within 2 of the reach, with any wind. They also check
-that stoke and fuel raise the fire and that degenerate grids do not crash.
+the fire at every platform's width and resolution, every wind from -2 to 3,
+and tip heats from 0 to 20. They check that no write goes out of bounds, that
+heat stays within 0-36, and that the mean heat of the top row is within 2 of
+the requested tip heat. They also check that stoke raises the fire, that live
+changes of height, wind and stoke stay safe, and that degenerate widths do not
+crash.
 
 ```sh
-node tools/host/test_weather.js
+TZ=Europe/Amsterdam node tools/host/test_sky.js
 ```
 
-This tests the phone-side weather mapping against a response in
-Open-Meteo's format.
+This tests the phone side: the weather mapping against a response in
+Open-Meteo's format, and sun times against published tables (Amsterdam at
+both solstices, Tromsø's polar night and midnight sun).
 
 ## Credits
 
@@ -261,14 +271,17 @@ Open-Meteo's format.
   digits. Hearth is a from-scratch reimplementation of that idea. It simulates
   the fire instead of playing recorded frames, and shares no code or assets
   with Fireplace.
+- **The PSX Doom fire**, from id Software's PlayStation Doom, as
+  reverse-engineered and published by Fabien Sanglard
+  ([write-up](https://fabiensanglard.net/doom_fire_psx/),
+  [DoomFirePSX](https://github.com/fabiensanglard/DoomFirePSX)). Hearth's
+  engine is an independent C transcription of its ten-line `spreadFire` rule.
+  DoomFirePSX has no license file. The rule is quoted in `src/c/fire.c` for
+  reference.
 - **[doom-fire-algorithm](https://github.com/filipedeschamps/doom-fire-algorithm)**
-  by Filipe Deschamps (MIT) inspired the coupled decay and drift (see "How it
-  works"). Hearth already used its efficiency ideas: one in-place array, one
-  random number per pixel and a palette index per heat level. It goes further
-  with xorshift32 instead of `Math.random`, row-major loops, no per-pixel
-  function calls, and padding instead of bounds checks.
-- [Fabien Sanglard's write-up](https://fabiensanglard.net/doom_fire_psx/) of
-  the PSX Doom fire.
+  by Filipe Deschamps (MIT), an open-source collection of Doom fire
+  implementations, used as a reference for efficient ports: one in-place
+  array, one random number per pixel, and a palette index per heat level.
 - Weather data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
 
 ## License notes
