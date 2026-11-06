@@ -8,17 +8,15 @@
 #include "flames.h"
 #include "layout.h"
 #include "settings.h"
-#include "weather.h"
+#include "sky.h"
 
 #define IDLE_TIMEOUT_MS 30000
-// Extra reach while the digits flare on the minute, and for how long.
-#define FLARE_FUEL 12
+// Heat added to every cell when the digits flare on the minute, and when a
+// tap or shake stokes the fire. Doom's fire burns it down in a few seconds.
 #define FLARE_HEAT 8
-#define FLARE_MS 1000
-// A tap or shake stokes the fire the same way, a little longer.
-#define STOKE_MS 1500
-// How often to ask the phone for weather, in minutes past the hour.
-#define WEATHER_EVERY_MIN 30
+#define STOKE_HEAT 10
+// How often to ask the phone for weather and sun times, in minutes.
+#define SKY_EVERY_MIN 30
 // Tilt: accelerometer x (milli-g) per unit of wind.
 #define TILT_PER_WIND 350
 // Log the average frame cost once, after this many frames.
@@ -30,14 +28,6 @@ static const uint32_t s_digit_resources[10] = {
   RESOURCE_ID_DIGIT_8, RESOURCE_ID_DIGIT_9,
 };
 
-#if defined(PBL_COLOR)
-static const int8_t s_turbulence_tables[TurbulenceCount][4] = {
-  {0, 0, 0, 0},
-  {-1, 0, 0, 1},
-  {-2, -1, 1, 2},
-};
-#endif
-
 static Window *s_window;
 static Layer *s_canvas;
 
@@ -47,7 +37,7 @@ static Layout s_layout;
 
 static Fire *s_fire;
 static uint8_t s_cell_shift;   // cell size shift the current fire was built for
-static GSize s_fire_window;    // window size the current fire was built for
+static int16_t s_fire_window_w; // window width the current fire was built for
 
 static Settings s_settings;
 static bool s_settings_pending;  // arrived while unfocused, apply on refocus
@@ -60,7 +50,6 @@ static bool s_running;           // focused && awake: frames are being produced
 #if defined(PBL_COLOR)
 static bool s_tilt_subscribed;
 #endif
-static uint16_t s_flare_frames;
 
 static uint32_t s_profile_frames;
 static uint32_t s_profile_step_ms;
@@ -84,13 +73,19 @@ static uint8_t wanted_cell_shift(void) {
 #endif
 }
 
-// With the Weather setting on (and weather received), the local weather
-// replaces the Flame height and Wind settings.
+// The flame height comes from the setting, the outside temperature or the
+// sun, falling back to the setting until the phone has sent the values.
 static uint8_t flame_height(void) {
   int8_t wind;
   uint8_t height;
-  if (s_settings.weather && weather_get(&wind, &height)) {
+  if (s_settings.height_source == HeightWeather && sky_weather(&wind, &height)) {
     return height;
+  }
+  if (s_settings.height_source == HeightSun) {
+    time_t now = time(NULL);
+    if (sky_sun_height(localtime(&now), &height)) {
+      return height;
+    }
   }
   return s_settings.flame_height;
 }
@@ -99,7 +94,7 @@ static uint8_t flame_height(void) {
 static int8_t base_wind(void) {
   int8_t wind;
   uint8_t height;
-  if (s_settings.weather && weather_get(&wind, &height)) {
+  if (s_settings.weather_wind && sky_weather(&wind, &height)) {
     return wind;
   }
   return s_settings.wind;
@@ -112,13 +107,13 @@ static void configure_fire(void) {
   }
   fire_set_reach(s_fire, settings_top_heat(flame_height()));
 #if defined(PBL_COLOR)
-  fire_set_turbulence(s_fire, s_turbulence_tables[s_settings.turbulence]);
   fire_set_wind(s_fire, base_wind());
 #endif
-  fire_set_fuel(s_fire, s_flare_frames ? FLARE_FUEL : 0);
 }
 
-// Destroys and recreates the fire for the current window and resolution.
+// Destroys and recreates the fire for the current window width and
+// resolution. (Its rows do not depend on the window: they are stretched over
+// whatever height the digits take.)
 // The old fire is freed first so a fine grid can use its memory. If the
 // requested size does not fit, coarser sizes are tried, and finally the
 // previous size, so a failed malloc never leaves the face without flames
@@ -130,16 +125,16 @@ static void rebuild_fire(void) {
   GSize win = s_layout.window.size;
   for (uint8_t shift = wanted_cell_shift(); shift <= 2 && !s_fire; shift++) {
     uint16_t cell = 1 << shift;
-    s_fire = fire_create((win.w + cell - 1) >> shift, (win.h + cell - 1) >> shift, rand());
+    s_fire = fire_create((win.w + cell - 1) >> shift, rand());
     if (s_fire) s_cell_shift = shift;
   }
   if (!s_fire) {
     uint16_t cell = 1 << previous;
-    s_fire = fire_create((win.w + cell - 1) >> previous, (win.h + cell - 1) >> previous, rand());
+    s_fire = fire_create((win.w + cell - 1) >> previous, rand());
     if (s_fire) s_cell_shift = previous;
   }
   if (s_fire) {
-    s_fire_window = win;
+    s_fire_window_w = win.w;
     configure_fire();
   } else {
     APP_LOG(APP_LOG_LEVEL_ERROR, "no memory for the fire");
@@ -158,7 +153,7 @@ static void update_layout(void) {
   }
   GRect bounds = layer_get_bounds(s_canvas);
   layout_compute(&s_layout, layer_get_unobstructed_bounds(s_canvas), bounds.size.w, sizes);
-  if (!gsize_equal(&s_layout.window.size, &s_fire_window)) {
+  if (s_layout.window.size.w != s_fire_window_w) {
     rebuild_fire();
   }
 }
@@ -241,9 +236,6 @@ static void frame(void *context) {
     return;
   }
   uint32_t start = now_ms();
-  if (s_flare_frames && --s_flare_frames == 0) {
-    fire_set_fuel(s_fire, 0);
-  }
 #if defined(PBL_COLOR)
   if (s_tilt_subscribed) {
     AccelData accel;
@@ -299,10 +291,6 @@ static void update_running(void) {
       app_timer_cancel(s_frame_timer);
       s_frame_timer = NULL;
     }
-    if (s_flare_frames) {
-      s_flare_frames = 0;
-      if (s_fire) fire_set_fuel(s_fire, 0);
-    }
   }
 #if defined(PBL_RGB_BACKLIGHT)
   if (!s_running || !s_settings.backlight) {
@@ -319,18 +307,11 @@ static void update_running(void) {
   update_tilt_subscription();
 }
 
-// The flames leap at once (stoke), are fed extra fuel for a moment, then
-// settle back on their own.
-static void flare(uint32_t ms) {
-  if (!s_running || !s_fire) {
-    return;
+// The flames leap at once, then Doom's fire burns the extra heat down.
+static void flare(uint8_t heat) {
+  if (s_running && s_fire) {
+    fire_stoke(s_fire, heat);
   }
-  uint16_t frames = (uint32_t)s_settings.fps * ms / 1000;
-  if (frames > s_flare_frames) {
-    s_flare_frames = frames;
-  }
-  fire_stoke(s_fire, FLARE_HEAT);
-  fire_set_fuel(s_fire, FLARE_FUEL);
 }
 
 static void idle_timeout(void *context) {
@@ -354,7 +335,7 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
     wake();
   }
   if (s_settings.stoke) {
-    flare(STOKE_MS);
+    flare(STOKE_HEAT);
   }
 }
 
@@ -404,9 +385,9 @@ static void apply_settings(void) {
 }
 
 static void inbox_received(DictionaryIterator *iter, void *context) {
-  bool weather = weather_from_message(iter);
+  bool sky = sky_from_message(iter);
   bool settings = settings_from_message(&s_settings, iter);
-  if (!weather && !settings) {
+  if (!sky && !settings) {
     return;
   }
   if (settings) {
@@ -429,10 +410,14 @@ static void inbox_dropped(AppMessageResult reason, void *context) {
 static void tick_handler(struct tm *t, TimeUnits changed) {
   update_time(t);
   if (s_settings.flare) {
-    flare(FLARE_MS);
+    flare(FLARE_HEAT);
   }
-  if (s_settings.weather && t->tm_min % WEATHER_EVERY_MIN == 0) {
-    weather_request();
+  bool uses_sky = s_settings.height_source != HeightManual || s_settings.weather_wind;
+  if (uses_sky && t->tm_min % SKY_EVERY_MIN == 0) {
+    sky_request();
+  }
+  if (s_settings.height_source == HeightSun) {
+    configure_fire();  // follow the sun through dusk and dawn
   }
 }
 
@@ -476,7 +461,7 @@ static void window_unload(Window *window) {
 static void init(void) {
   srand(time(NULL));
   settings_load(&s_settings);
-  weather_load();
+  sky_load();
   flames_configure(&s_settings);
 #if defined(PBL_SPEAKER)
   crackle_init();
@@ -503,9 +488,9 @@ static void init(void) {
 
   app_message_register_inbox_received(inbox_received);
   app_message_register_inbox_dropped(inbox_dropped);
-  // 20 int32 keys (18 settings, 2 weather) at about 11 bytes each, plus the
-  // dictionary header.
-  const uint32_t inbox = 20 * 11 + 16;
+  // 23 int32 keys (16 settings, 6 sky values, 1 request) at about 11 bytes
+  // each, plus the dictionary header.
+  const uint32_t inbox = 23 * 11 + 16;
   if (app_message_open(inbox, 64) != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "app_message_open failed; settings unavailable");
   }

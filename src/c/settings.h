@@ -3,7 +3,7 @@
 
 // Bump when the struct layout changes; stored settings with another version
 // are ignored and the defaults used instead.
-#define SETTINGS_VERSION 2
+#define SETTINGS_VERSION 3
 
 typedef enum {
   AnimateAlways = 0,
@@ -20,12 +20,13 @@ typedef enum {
   ThemeCount,
 } Theme;
 
+// What sets the flame height.
 typedef enum {
-  TurbulenceCalm = 0,
-  TurbulenceNormal,
-  TurbulenceWild,
-  TurbulenceCount,
-} Turbulence;
+  HeightManual = 0,   // the Flame height setting
+  HeightWeather = 1,  // outside temperature: colder is higher
+  HeightSun = 2,      // low by day, high at night, ramping at sunrise and sunset
+  HeightSourceCount,
+} HeightSource;
 
 typedef struct __attribute__((__packed__)) {
   uint8_t version;
@@ -34,7 +35,7 @@ typedef struct __attribute__((__packed__)) {
   uint8_t resolution;     // cell size shift: 0 = 1 px, 1 = 2 px, 2 = 4 px (color only)
   uint8_t flame_height;   // 1..10
   int8_t wind;            // -2..2 (color only)
-  uint8_t turbulence;     // Turbulence (color only)
+  uint8_t reserved;       // was turbulence (v1, v2); Doom's fire has none
   uint8_t theme;          // Theme (color only)
   uint8_t custom[3];      // ember, flame, hot as GColor8 argb (color only)
   uint8_t flare;          // bool
@@ -44,7 +45,8 @@ typedef struct __attribute__((__packed__)) {
   uint8_t crackle;        // bool (emery, flint)
   uint8_t volume;         // 1..10 (emery, flint)
   uint8_t stoke;          // bool: a tap or shake makes the flames leap
-  uint8_t weather;        // bool: local weather sets flame height and wind
+  uint8_t height_source;  // HeightSource (v2: bool "weather", same values)
+  uint8_t weather_wind;   // bool: the local wind sets the wind (color only)
 } Settings;
 
 // Loads stored settings or the defaults.

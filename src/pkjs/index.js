@@ -1,7 +1,7 @@
 var Clay = require('@rebble/clay');
 var clayConfig = require('./config');
 var customClay = require('./custom-clay');
-var weather = require('./weather');
+var sky = require('./sky');
 
 // Settings are converted here rather than by Clay so the watch always gets
 // one int32 per key, whatever type the component produced (select values are
@@ -19,24 +19,29 @@ function toInt(key, value) {
   return parseInt(value, 10) || 0;
 }
 
-// Clay keeps the last saved values in localStorage.
-function weatherEnabled() {
+// Clay keeps the last saved values in localStorage. Height source:
+// 0 manual, 1 outside temperature, 2 sun.
+function saved() {
   try {
-    var saved = JSON.parse(localStorage.getItem('clay-settings')) || {};
-    return !!saved.Weather;
+    return JSON.parse(localStorage.getItem('clay-settings')) || {};
   } catch (e) {
-    return false;
+    return {};
   }
 }
 
+function updateSky(settings) {
+  var source = parseInt(settings.HeightSource, 10) || 0;
+  sky.update(source === 2, source === 1 || !!settings.WindFollowsWeather);
+}
+
 Pebble.addEventListener('ready', function() {
-  if (weatherEnabled()) weather.fetchAndSend();
+  updateSky(saved());
 });
 
-// The watch asks every half hour while the Weather setting is on.
+// The watch asks every half hour while a setting uses the sky.
 Pebble.addEventListener('appmessage', function(e) {
-  if (e.payload && e.payload.WeatherRequest !== undefined && weatherEnabled()) {
-    weather.fetchAndSend();
+  if (e.payload && e.payload.SkyRequest !== undefined) {
+    updateSky(saved());
   }
 });
 
@@ -56,7 +61,7 @@ Pebble.addEventListener('webviewclosed', function(e) {
   });
   Pebble.sendAppMessage(message, function() {
     console.log('Settings sent');
-    if (message.Weather) weather.fetchAndSend();
+    updateSky(saved());
   }, function(err) {
     console.log('Settings failed: ' + JSON.stringify(err));
   });

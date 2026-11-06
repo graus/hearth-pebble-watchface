@@ -37,7 +37,6 @@
       "Resolution",
       "FlameHeight",
       "Wind",
-      "Turbulence",
       "Theme",
       "CustomEmber",
       "CustomFlame",
@@ -49,10 +48,13 @@
       "Crackle",
       "Volume",
       "Stoke",
-      "Weather",
-      "WeatherWind",
-      "WeatherHeight",
-      "WeatherRequest"
+      "HeightSource",
+      "WindFollowsWeather",
+      "SkyWind",
+      "SkyHeight",
+      "SunRise",
+      "SunSet",
+      "SkyRequest"
     ],
     "resources": {
       "media": [

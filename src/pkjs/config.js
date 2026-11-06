@@ -32,6 +32,7 @@ module.exports = [
         type: 'slider',
         messageKey: 'FlameHeight',
         label: 'Flame height',
+        description: 'Used when the flame height follows this setting (see Sky).',
         defaultValue: 5,
         min: 1,
         max: 10,
@@ -59,20 +60,8 @@ module.exports = [
         max: 2,
         step: 1,
         capabilities: ['COLOR'],
-        description: 'Negative blows left, positive blows right.'
+        description: '0 is the original Doom fire, which leans slightly left; 1 leans as much to the right. Negative blows left, positive right.'
       },
-      {
-        type: 'select',
-        messageKey: 'Turbulence',
-        label: 'Turbulence',
-        defaultValue: '1',
-        capabilities: ['COLOR'],
-        options: [
-          { label: 'Calm', value: '0' },
-          { label: 'Normal', value: '1' },
-          { label: 'Wild', value: '2' }
-        ]
-      }
     ]
   },
   {
@@ -140,13 +129,29 @@ module.exports = [
   {
     type: 'section',
     items: [
-      { type: 'heading', defaultValue: 'Weather' },
+      { type: 'heading', defaultValue: 'Sky' },
+      {
+        type: 'select',
+        messageKey: 'HeightSource',
+        label: 'Flame height follows',
+        defaultValue: '0',
+        options: [
+          { label: 'The Flame height setting', value: '0' },
+          { label: 'Outside temperature (colder is higher)', value: '1' },
+          { label: 'The sun (low by day, high at night)', value: '2' }
+        ]
+      },
       {
         type: 'toggle',
-        messageKey: 'Weather',
-        label: 'Weather sets the fire',
+        messageKey: 'WindFollowsWeather',
+        label: 'Wind follows the weather',
         defaultValue: false,
-        description: 'The colder it is outside, the higher the flames. On color watches the flames also lean with the local wind (east is right, as on a map). Replaces Flame height and Wind. Uses your location every 30 minutes. Weather data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0).'
+        capabilities: ['COLOR'],
+        description: 'The flames lean with the local wind (east is right, as on a map). Replaces the Wind setting.'
+      },
+      {
+        type: 'text',
+        defaultValue: 'Sun and weather use your location every 30 minutes. Sun times are worked out on your phone; weather data by <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0).'
       }
     ]
   },

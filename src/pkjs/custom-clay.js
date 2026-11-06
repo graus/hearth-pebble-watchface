@@ -5,10 +5,10 @@ module.exports = function() {
 
   // Must match the defaults in config.js and src/c/settings.c.
   var DEFAULTS = {
-    FrameRate: '10', FlameHeight: 5, Resolution: '1', Wind: 0, Turbulence: '1',
+    FrameRate: '10', FlameHeight: 5, Resolution: '1', Wind: 0,
     Theme: '0', CustomEmber: 0xFF0000, CustomFlame: 0xFF5500, CustomHot: 0xFFFF00,
     Animate: '0', Flare: false, TiltWind: false, Backlight: true, Flicker: 100,
-    Crackle: true, Volume: 3, Stoke: true, Weather: false
+    Crackle: true, Volume: 3, Stoke: true, HeightSource: '0', WindFollowsWeather: false
   };
 
   // Same stops as src/c/flames.c, for the gradient preview.
@@ -64,6 +64,10 @@ module.exports = function() {
       });
       updatePreview();
     }
+    var source = item('HeightSource');
+    if (source) {
+      if (source.get() === '0') item('FlameHeight').show(); else item('FlameHeight').hide();
+    }
     var backlight = item('Backlight');
     if (backlight) {
       if (backlight.get()) item('Flicker').show(); else item('Flicker').hide();
@@ -71,7 +75,7 @@ module.exports = function() {
   }
 
   clayConfig.on(clayConfig.EVENTS.AFTER_BUILD, function() {
-    ['Theme', 'CustomEmber', 'CustomFlame', 'CustomHot', 'Backlight'].forEach(function(key) {
+    ['Theme', 'CustomEmber', 'CustomFlame', 'CustomHot', 'Backlight', 'HeightSource'].forEach(function(key) {
       var it = item(key);
       if (it) it.on('change', updateVisibility);
     });

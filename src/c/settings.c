@@ -12,7 +12,7 @@ static const Settings s_defaults = {
   .resolution = 1,
   .flame_height = 5,
   .wind = 0,
-  .turbulence = TurbulenceNormal,
+  .reserved = 0,
   .theme = ThemeClassic,
   .custom = {0xF0 /* red */, 0xF4 /* orange */, 0xFC /* yellow */},
   .flare = 0,
@@ -22,7 +22,8 @@ static const Settings s_defaults = {
   .crackle = 1,
   .volume = 3,
   .stoke = 1,
-  .weather = 0,
+  .height_source = HeightManual,
+  .weather_wind = 0,
 };
 
 static int clamp(int v, int lo, int hi) {
@@ -50,7 +51,7 @@ static void sanitize(Settings *s) {
   s->resolution = clamp(s->resolution, 0, 2);
   s->flame_height = clamp(s->flame_height, 1, 10);
   s->wind = clamp(s->wind, -2, 2);
-  s->turbulence = clamp(s->turbulence, 0, TurbulenceCount - 1);
+  s->reserved = 0;
   s->theme = clamp(s->theme, 0, ThemeCount - 1);
   for (int i = 0; i < 3; i++) {
     s->custom[i] |= 0xC0;  // opaque
@@ -62,7 +63,8 @@ static void sanitize(Settings *s) {
   s->crackle = !!s->crackle;
   s->volume = clamp(s->volume, 1, 10);
   s->stoke = !!s->stoke;
-  s->weather = !!s->weather;
+  s->height_source = clamp(s->height_source, 0, HeightSourceCount - 1);
+  s->weather_wind = !!s->weather_wind;
 }
 
 void settings_load(Settings *s) {
@@ -72,12 +74,17 @@ void settings_load(Settings *s) {
     int read = persist_read_data(SETTINGS_KEY, &stored, sizeof(stored));
     if (read == (int)sizeof(stored) && stored.version == SETTINGS_VERSION) {
       *s = stored;
+    } else if (read == (int)offsetof(Settings, weather_wind) && stored.version == 2) {
+      // Version 2 had one "weather" toggle for height and wind; its byte
+      // becomes the height source (1 is still "weather").
+      *s = stored;
+      s->weather_wind = s->height_source;
     } else if (read == (int)offsetof(Settings, stoke) && stored.version == 1) {
-      // Version 1 lacked the trailing stoke and weather fields: keep the
-      // rest and take the defaults for those.
+      // Version 1 lacked the trailing fields: keep the rest, default those.
       *s = stored;
       s->stoke = s_defaults.stoke;
-      s->weather = s_defaults.weather;
+      s->height_source = s_defaults.height_source;
+      s->weather_wind = s_defaults.weather_wind;
     }
   }
   sanitize(s);
@@ -121,7 +128,6 @@ bool settings_from_message(Settings *s, DictionaryIterator *iter) {
   if (read_int(iter, MESSAGE_KEY_Resolution, &v)) { s->resolution = clamp(v, 0, 2); any = true; }
   if (read_int(iter, MESSAGE_KEY_FlameHeight, &v)) { s->flame_height = clamp(v, 1, 10); any = true; }
   if (read_int(iter, MESSAGE_KEY_Wind, &v)) { s->wind = clamp(v, -2, 2); any = true; }
-  if (read_int(iter, MESSAGE_KEY_Turbulence, &v)) { s->turbulence = clamp(v, 0, TurbulenceCount - 1); any = true; }
   if (read_int(iter, MESSAGE_KEY_Theme, &v)) { s->theme = clamp(v, 0, ThemeCount - 1); any = true; }
   if (read_int(iter, MESSAGE_KEY_CustomEmber, &v)) { s->custom[0] = rgb_to_argb8(v); any = true; }
   if (read_int(iter, MESSAGE_KEY_CustomFlame, &v)) { s->custom[1] = rgb_to_argb8(v); any = true; }
@@ -133,7 +139,8 @@ bool settings_from_message(Settings *s, DictionaryIterator *iter) {
   if (read_int(iter, MESSAGE_KEY_Crackle, &v)) { s->crackle = v != 0; any = true; }
   if (read_int(iter, MESSAGE_KEY_Volume, &v)) { s->volume = clamp(v, 1, 10); any = true; }
   if (read_int(iter, MESSAGE_KEY_Stoke, &v)) { s->stoke = v != 0; any = true; }
-  if (read_int(iter, MESSAGE_KEY_Weather, &v)) { s->weather = v != 0; any = true; }
+  if (read_int(iter, MESSAGE_KEY_HeightSource, &v)) { s->height_source = clamp(v, 0, HeightSourceCount - 1); any = true; }
+  if (read_int(iter, MESSAGE_KEY_WindFollowsWeather, &v)) { s->weather_wind = v != 0; any = true; }
   return any;
 }
 
