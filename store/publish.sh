@@ -19,6 +19,25 @@ done
 ls store/screenshots/*.gif store/screenshots/*.png >/dev/null 2>&1 || {
   echo "no screenshots in store/screenshots"; exit 1; }
 
+# The store rejects any image that is not exactly the platform's screen size,
+# and then publishes without screenshots, so check them first.
+python3 - <<'EOF' || exit 1
+import glob, os, sys
+from PIL import Image
+sizes = {"aplite": (144, 168), "basalt": (144, 168), "diorite": (144, 168),
+         "flint": (144, 168), "chalk": (180, 180), "emery": (200, 228),
+         "gabbro": (260, 260)}
+bad = 0
+for path in sorted(glob.glob("store/screenshots/*")):
+    platform = os.path.basename(path).split("_", 1)[0]
+    want, got = sizes.get(platform), Image.open(path).size
+    if got != want:
+        print("%s is %dx%d, the store needs %s" % (path, got[0], got[1],
+              "%dx%d" % want if want else "a platform_ prefix"))
+        bad = 1
+sys.exit(bad)
+EOF
+
 # `pebble login --status` succeeds even when logged out, so read its output.
 status=$(pebble login --status 2>&1) || true
 echo "$status"
