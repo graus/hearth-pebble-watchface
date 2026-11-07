@@ -35,7 +35,7 @@ add a crackling sound, and Emery's RGB backlight can flicker with the flames.
 |---|---|---|---|
 | ![aplite](docs/screenshots/aplite.png) | ![diorite](docs/screenshots/diorite.png) | ![flint](docs/screenshots/flint.png) | ![quick view](docs/screenshots/basalt-quick-view.png) |
 
-| Tap to stoke (emery, 0.3 s after a tap) | Flame height follows the sun: night | ...and day |
+| Tap to stoke (emery, 0.3 s after a tap) | Flame height set by time of day: night | ...and day |
 |---|---|---|
 | ![stoke](docs/screenshots/emery-stoke.png) | ![night](docs/screenshots/emery-sun-night.png) | ![day](docs/screenshots/emery-sun-day.png) |
 
@@ -58,27 +58,32 @@ Open the settings from the Pebble app. Every change applies live. If a
 notification is covering the face, the change applies when the face comes
 back.
 
-| Setting | Values | Default | Platforms |
-|---|---|---|---|
-| Frame rate | 5, 8, 10, 15, 20 fps | 10 | all |
-| Animate | Always, On tap | Always | all |
-| Resolution | Fine 1 px, Normal 2 px, Chunky 4 px | Normal | color |
-| Flame height | 1-10 (tip heat 0-20, 5 = 9) | 5 | all |
-| Flame height follows | the setting, outside temperature, the sun | the setting | all |
-| Wind | -2 .. +2 (0 is Doom's own lean) | 0 | color |
-| Wind follows the weather | on/off | off | color |
-| Color theme | Classic, Ember, Blue, Green, Purple, Custom | Classic | color |
-| Custom colors | 3 color pickers (embers, flames, hottest) | red, orange, yellow | color, Custom theme |
-| Flare on the minute | on/off | off | all |
-| Tap to stoke | on/off | on | all |
-| Wind follows tilt | on/off | off | color |
-| Flickering backlight | on/off | off | emery |
-| Flicker amount | 0-100 % | 100 | emery |
-| Crackling sound | on/off | on | emery, flint |
-| Crackle volume | 1-10 | 3 | emery, flint |
+| Section | Setting | Values | Default | Platforms |
+|---|---|---|---|---|
+| Flame height | Set by | me, outside temperature, time of day | me | all |
+| | Flame height | 1-10 (tip heat 0-20, 5 = 9) | 5 | all |
+| Wind | Set by | me, local wind | me | color |
+| | Wind | -2 .. +2 (0 is the Doom fire's own slight lean left) | 0 | color |
+| | Tilt the watch to blow | on/off | off | color |
+| Colors | Color theme | Classic, Ember, Blue, Green, Purple, Custom | Classic | color |
+| | Custom colors | 3 color pickers (embers, flames, hottest) | red, orange, yellow | color, Custom theme |
+| Animation | Flames move | always, for 30 s after a tap | always | all |
+| | Tap to stoke | on/off | on | all |
+| | Flare at each new minute | on/off | off | all |
+| | Frame rate | 5, 8, 10, 15, 20 fps | 10 | all |
+| | Detail | Fine 1 px, Normal 2 px, Chunky 4 px | Normal | color |
+| Backlight | Flickering backlight | on/off | off | emery |
+| | Flicker amount | 0-100 % | 100 | emery |
+| Sound | Crackling sound | on/off | on | emery, flint |
+| | Crackle volume | 1-10 (10-100 % of the speaker) | 5 | emery, flint |
 
-The config page shows only the sections a watch supports. It also has a
-palette preview and a "Reset to defaults" button.
+The settings page shows only the sections a watch supports, and explains
+each setting in place. **Flame height** is how far the flames climb up the
+digits; **wind** is how far they lean sideways, like a draft through the
+fire. Each can be set by you or taken from outside (see below). **Tap to
+stoke** makes the flames leap when you tap or flick the watch; **Flare at
+each new minute** does the same by itself when the minute changes. The page
+also has a palette preview and a "Reset to defaults" button.
 
 ### Battery
 
@@ -95,11 +100,11 @@ Tap the watch or flick your wrist and the flames leap up, then settle back over
 a few seconds. It uses the accelerometer's tap events, which cost nothing
 between taps. With Animate: On tap, the same tap also wakes the face.
 
-### Sky: sun and weather
+### Flame height and wind from outside
 
-**Flame height follows** can take the flame height from outside:
+Flame height can be **set by** two things outside:
 
-- **The sun.** Low flames by day (height 3) and high at night (height 8). The
+- **Time of day.** Low flames by day (height 3) and high at night (height 8). The
   height ramps linearly over an hour centered on sunrise and on sunset, so
   the fire builds up through dusk and dies down through dawn. The phone
   computes sunrise and sunset from your location with the sunrise equation
@@ -112,7 +117,7 @@ between taps. With Animate: On tap, the same tap also wakes the face.
   below 3, because lower heights fade the hours to embers and make the time
   hard to read.
 
-**Wind follows the weather** (color watches) leans the flames with the local
+Wind can be **set by** the **local wind** (color watches): the flames lean with the local
 wind. The watch has no compass, so wind is drawn as on a map: the east-west
 part of the wind, with wind toward the east blowing right. An east-west part
 under 6 km/h counts as calm (0), 6-20 km/h as a breeze (±1), and anything
@@ -137,7 +142,7 @@ height and Wind settings until the first values arrive. The app declares the
 The SDK refuses microphone access to watchfaces: `mic_capture_start` returns
 `MicCaptureStartErrWatchface`, and the header says "Watchfaces can never
 stream". A breath-controlled fire would have to be a separate watchapp (with a
-Microphone grant), not this face. Tap to stoke and Wind follows tilt are the
+Microphone grant), not this face. Tap to stoke and Tilt the watch to blow are the
 accelerometer alternatives.
 
 ### Flickering backlight (emery)
@@ -152,9 +157,20 @@ it on).
 
 ### Crackling sound (emery, flint)
 
-Hearth plays short pops of decaying noise with random pitch and loudness, in
-clusters. It stays silent when the speaker is muted, during Quiet Time, and
-while anything else is playing.
+Every crackle is synthesised afresh on the watch (`src/c/crackle_synth.c`),
+so no two sound alike: a cluster of one to five sharp snaps a few to 35 ms
+apart, each a click that dies away within a few milliseconds, sometimes with
+the duller, lower pop of a bursting sap pocket, and a faint ember hiss after.
+It plays at 16 kHz, in clusters of crackles with mostly longer gaps. To hear
+it on a computer, `make -C tools/host crackle.wav` renders 12 seconds with
+the same code and timing.
+
+It stays silent when the watch speaker is muted (on the watch: Settings,
+Sounds), during Quiet Time, and while anything else is playing. When it is
+silent for one of those reasons it says so once in `pebble logs`. Turning
+the sound on or changing its volume plays one crackle at once. The volume
+setting runs from 10 to 100 % of the speaker; the spec's 2-20 % was too
+quiet to hear on a watch.
 
 ## How it works
 
@@ -213,8 +229,9 @@ request. With that change:
 | B&W dither ramp | not specified | no dots at heat 6 or below, solid at 30 or above, linear between | A linear 0-36 ramp reads as a halftone gradient. This one gives a solid base with broken, flickering tips. |
 | Backlight center | 227 fixed | running average, starting at 227 | Keeps the flicker centered when the flame height moves the mean heat. |
 | Flickering backlight default | on | off | It keeps the backlight lit while the flames move, the biggest battery cost on emery by far. |
+| Digit font | a heavy geometric sans (Montserrat ExtraBold) | Rubik Black at 58/58/113/105, the same digit heights | A heavier face shows more fire. |
 
-Everything else uses the spec's values: digit font sizes 59/59/110/104, gaps
+Everything else uses the spec's values: gaps
 8/8/16/15 and 14/14/28/26, tip heat 9, 10 fps and 2 px cells.
 
 ## Measurements (emulator, SDK 4.44)
@@ -231,6 +248,10 @@ each resolution where it applies:
 | chalk | 51,488 | not measured | 51,488 | not measured |
 | emery | 109,996 | 102,140 | 109,996 | 113,876 |
 | gabbro | 112,392 | 105,020 | 112,392 | 116,080 |
+
+These were measured with the earlier digit font. Rubik Black's flame window
+is 8 px wider on emery and 6 px on gabbro, which adds under 1 KB to the Fine
+grid there; the other platforms are unchanged.
 
 The engine always allocates its maximum number of rows (97), so changing the
 flame height never allocates memory. Fine fits comfortably everywhere, so no
@@ -407,7 +428,7 @@ night and midnight sun).
 
 Hearth's code is under the [MIT License](LICENSE).
 
-The digits are rendered from **Montserrat ExtraBold** (Copyright 2024 The
-Montserrat.Git Project Authors), licensed under the
+The digits are rendered from **Rubik Black** (Copyright 2015 The Rubik
+Project Authors), licensed under the
 [SIL Open Font License 1.1](tools/fonts/OFL.txt). The font file is in
 `tools/fonts/` and is used only at build time to make the bitmaps.

@@ -19,8 +19,8 @@ typedef struct {
 static const Platform s_platforms[] = {
   {"aplite/diorite/flint", 78 + 8, 1},
   {"basalt/chalk", 78 + 8, 0},
-  {"emery", 146 + 16, 0},
-  {"gabbro", 138 + 15, 0},
+  {"emery", 154 + 16, 0},
+  {"gabbro", 144 + 15, 0},
 };
 
 static int s_failures;

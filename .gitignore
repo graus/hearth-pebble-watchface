@@ -6,3 +6,5 @@ tools/host/test_daylight
 __pycache__/
 package-lock.json
 /screenshots/
+tools/host/crackle_wav
+tools/host/crackle.wav

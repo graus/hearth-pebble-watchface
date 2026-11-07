@@ -16,7 +16,7 @@ import sys
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONT = os.path.join(ROOT, "tools", "fonts", "Montserrat-ExtraBold.ttf")
+FONT = os.path.join(ROOT, "tools", "fonts", "Rubik-Black.ttf")
 OUT = os.path.join(ROOT, "store")
 
 MAX_HEAT = 36
