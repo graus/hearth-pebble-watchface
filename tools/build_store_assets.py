@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Generate Hearth's app store icons: the face in miniature, its digits
+"""Generate Hearth's app store icons and banner: the face in miniature, its digits
 filled with the Doom fire in the Classic palette.
 
     python3 tools/build_store_assets.py
 
-Outputs store/icon-80.png (iconSmall) and store/icon-144.png (iconLarge).
+Outputs store/icon-80.png (iconSmall), store/icon-144.png (iconLarge) and
+store/banner-720x320.png (the store page banner, uploaded on the dashboard).
 The fire is a Python copy of src/c/fire.c's spreadFire (same rule, same
 offset distribution), seeded so the output is reproducible.
 """
@@ -73,20 +74,61 @@ def icon(size, text_rows, seed=7):
         draw.text(((size - w) // 2 - b[0], y - b[1]), t, font=font, fill=255)
         y += h + gap
     bottom = y - gap
-    # One fire row per pixel row of the digit block (about 2 px per cell
-    # across), with the top reaching tip heat ~9 like the face's default.
-    cell = 2 if size >= 100 else 1
-    cols = (size + cell - 1) // cell
+    return fire_fill(mask, top, bottom, cell=2 if size >= 100 else 1, seed=seed)
+
+
+def fire_fill(mask, top, bottom, cell, seed):
+    """Fill the white parts of `mask` with Doom fire spanning rows top..bottom
+    (fuel at the bottom), on black."""
+    pal = palette()
+    w, h = mask.size
+    cols = (w + cell - 1) // cell
     rows = max(8, (bottom - top + cell - 1) // cell)
     grid = doom_fire(cols, rows, frames=rows * 4, seed=seed)
-    # Doom loses ~0.43 levels per row; stretch so the tips land near heat 9.
-    img = Image.new("RGB", (size, size), (0, 0, 0))
+    img = Image.new("RGB", (w, h), (0, 0, 0))
     px, mk = img.load(), mask.load()
-    for yy in range(size):
-        for xx in range(size):
+    for yy in range(h):
+        for xx in range(w):
             if mk[xx, yy] >= 128:
                 fy = min(rows - 1, max(0, (yy - top) * rows // max(1, bottom - top)))
                 px[xx, yy] = pal[grid[fy][xx // cell]]
+    return img
+
+
+def banner(width=720, height=320, seed=11):
+    """The store banner: the face's digits on fire, the name beside them."""
+    mask = Image.new("L", (width, height), 0)
+    draw = ImageDraw.Draw(mask)
+    font = ImageFont.truetype(FONT, 132)
+    rows = ["10", "09"]
+    boxes = [draw.textbbox((0, 0), t, font=font) for t in rows]
+    digit_h = max(b[3] - b[1] for b in boxes)
+    gap = 14
+    top = (height - (2 * digit_h + gap)) // 2
+    block_w = max(b[2] - b[0] for b in boxes)
+    left = 70
+    for i, (t, b) in enumerate(zip(rows, boxes)):
+        x = left + (block_w - (b[2] - b[0])) // 2 - b[0]
+        draw.text((x, top + i * (digit_h + gap) - b[1]), t, font=font, fill=255)
+    bottom = top + 2 * digit_h + gap
+    img = fire_fill(mask, top, bottom, cell=3, seed=seed)
+
+    # The name and a line about it, left-aligned to the right of the digits.
+    text = ImageDraw.Draw(img)
+    x = left + block_w + 60
+    name_font = ImageFont.truetype(FONT, 96)
+    tag_font = ImageFont.truetype(FONT, 25)
+    nb = text.textbbox((0, 0), "Hearth", font=name_font)
+    lines = ["The time, burning with", "the classic Doom fire"]
+    tb = text.textbbox((0, 0), lines[0], font=tag_font)
+    line_h = tb[3] - tb[1] + 12
+    block = (nb[3] - nb[1]) + 26 + line_h * len(lines)
+    y = (height - block) // 2
+    text.text((x - nb[0], y - nb[1]), "Hearth", font=name_font, fill=(255, 255, 255))
+    y += nb[3] - nb[1] + 26
+    for line in lines:
+        text.text((x - tb[0], y - tb[1]), line, font=tag_font, fill=(255, 170, 0))
+        y += line_h
     return img
 
 
@@ -95,6 +137,7 @@ def main():
     # The face itself in miniature: HH over MM, filled with fire.
     icon(144, ["10", "09"]).save(os.path.join(OUT, "icon-144.png"), optimize=True)
     icon(80, ["10", "09"]).save(os.path.join(OUT, "icon-80.png"), optimize=True)
+    banner().save(os.path.join(OUT, "banner-720x320.png"), optimize=True)
     return 0
 
 
