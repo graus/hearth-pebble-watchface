@@ -164,7 +164,7 @@ module.exports = [
         type: 'toggle',
         messageKey: 'Backlight',
         label: 'Flickering backlight',
-        defaultValue: true,
+        defaultValue: false,
         description: 'Keeps the light on while the flames move. Overrides the backlight timeout and ambient sensor, and drains the battery.'
       },
       {

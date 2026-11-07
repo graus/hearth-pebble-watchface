@@ -72,7 +72,7 @@ back.
 | Flare on the minute | on/off | off | all |
 | Tap to stoke | on/off | on | all |
 | Wind follows tilt | on/off | off | color |
-| Flickering backlight | on/off | on | emery |
+| Flickering backlight | on/off | off | emery |
 | Flicker amount | 0-100 % | 100 | emery |
 | Crackling sound | on/off | on | emery, flint |
 | Crackle volume | 1-10 | 3 | emery, flint |
@@ -147,7 +147,8 @@ backlight on** and tints it from the flames. That overrides the backlight
 timeout and the ambient light sensor, and **drains the battery quickly**.
 Hearth gives the light back to the system whenever the setting is off, the
 face is frozen (Animate: On tap), or a notification covers the face. The
-setting is on by default (as specified); turn it off for normal battery life.
+setting is off by default because of the battery cost (the original spec had
+it on).
 
 ### Crackling sound (emery, flint)
 
@@ -211,6 +212,7 @@ request. With that change:
 | Grid edges | padding cells, written but never read | wrap within the row | As close to Doom's own wrap as a 2-D grid allows. |
 | B&W dither ramp | not specified | no dots at heat 6 or below, solid at 30 or above, linear between | A linear 0-36 ramp reads as a halftone gradient. This one gives a solid base with broken, flickering tips. |
 | Backlight center | 227 fixed | running average, starting at 227 | Keeps the flicker centered when the flame height moves the mean heat. |
+| Flickering backlight default | on | off | It keeps the backlight lit while the flames move, the biggest battery cost on emery by far. |
 
 Everything else uses the spec's values: digit font sizes 59/59/110/104, gaps
 8/8/16/15 and 14/14/28/26, tip heat 9, 10 fps and 2 px cells.
