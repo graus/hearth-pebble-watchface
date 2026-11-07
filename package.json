@@ -134,6 +134,76 @@
           "file": "digits/9.png",
           "memoryFormat": "1Bit",
           "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_0",
+          "file": "digits/s0.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_1",
+          "file": "digits/s1.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_2",
+          "file": "digits/s2.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_3",
+          "file": "digits/s3.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_4",
+          "file": "digits/s4.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_5",
+          "file": "digits/s5.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_6",
+          "file": "digits/s6.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_7",
+          "file": "digits/s7.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_8",
+          "file": "digits/s8.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
+        },
+        {
+          "type": "bitmap",
+          "name": "DIGIT_S_9",
+          "file": "digits/s9.png",
+          "memoryFormat": "1Bit",
+          "spaceOptimization": "memory"
         }
       ]
     }

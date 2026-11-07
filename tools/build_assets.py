@@ -6,8 +6,10 @@ Run from the project root (needs Pillow):
     python3 tools/build_assets.py
 
 Outputs:
-  resources/digits/<d>~<tag>.png   1-bit digits, white on black, cropped to ink
-  src/c/generated/metrics.h        digit height and worst-case pair width per platform
+  resources/digits/<d>~<tag>.png   large 1-bit digits, white on black, cropped to ink
+  resources/digits/s<d>~<tag>.png  compact digits, used while Timeline Quick View shows
+  src/c/generated/metrics.h        digit height, worst-case pair width and gaps per
+                                   platform, for both sets (DIGIT_L_*, DIGIT_S_*)
   resources/images/menu_icon.png   25x25 menu icon
 
 All ten digits of one size share one height and one baseline: they are cropped
@@ -15,6 +17,7 @@ horizontally to their own ink but vertically to the union of all digits' ink,
 so a row of any two digits lines up without per-digit offsets.
 """
 
+import math
 import os
 import sys
 
@@ -26,16 +29,23 @@ DIGIT_DIR = os.path.join(ROOT, "resources", "digits")
 METRICS = os.path.join(ROOT, "src", "c", "generated", "metrics.h")
 ICON = os.path.join(ROOT, "resources", "images", "menu_icon.png")
 
-# tag: (display width, font size, column gap, row gap)
+# Two digit sets per screen size:
+#   large:   as big as the screen allows (found below), used normally;
+#   compact: small enough to fit above Timeline Quick View, used while it shows.
+# tag: (display width, display height, round, compact font size, compact
+#       column gap, compact row gap)
 PLATFORMS = {
-    # Sizes give the same digit heights as before (43, 43, 81, 76 px) in
-    # Rubik Black, a heavier face than the earlier Montserrat ExtraBold, so
-    # more of each digit is fire.
-    "144w": (144, 58, 8, 14),
-    "180w": (180, 58, 8, 14),
-    "200w": (200, 113, 16, 28),
-    "260w": (260, 105, 15, 26),
+    "144w": (144, 168, False, 58, 8, 14),
+    "180w": (180, 180, True, 58, 8, 14),
+    "200w": (200, 228, False, 113, 16, 28),
+    "260w": (260, 260, True, 105, 15, 26),
 }
+
+# Large set: margin to the screen edge (rect) or the circle (round), and gaps
+# as a share of the screen.
+MARGIN = 4
+COL_GAP_SHARE = 0.05
+ROW_GAP_SHARE = 0.06
 
 
 def render_digit(font, d, size):
@@ -48,18 +58,42 @@ def render_digit(font, d, size):
     return img
 
 
-def build_size(tag, size):
+def render_size(size):
+    """The ten digits at one font size, cropped to a shared height."""
     font = ImageFont.truetype(FONT, size)
     imgs = [render_digit(font, d, size) for d in range(10)]
     boxes = [img.getbbox() for img in imgs]
     top = min(b[1] for b in boxes)
     bottom = max(b[3] for b in boxes)
-    widths = []
-    for d, (img, box) in enumerate(zip(imgs, boxes)):
-        crop = img.crop((box[0], top, box[2], bottom))
-        widths.append(crop.width)
-        crop.save(os.path.join(DIGIT_DIR, "%d~%s.png" % (d, tag)), optimize=True)
-    return bottom - top, widths
+    crops = [img.crop((box[0], top, box[2], bottom)) for img, box in zip(imgs, boxes)]
+    return bottom - top, crops
+
+
+def block(size, col_gap, row_gap):
+    height, crops = render_size(size)
+    widths = [c.width for c in crops]
+    pair = max(a + b for a in widths for b in widths)
+    return height, crops, pair, pair + col_gap, 2 * height + row_gap
+
+
+def fits(screen_w, screen_h, is_round, win_w, win_h):
+    if is_round:
+        return math.hypot(win_w / 2, win_h / 2) <= screen_w / 2 - MARGIN
+    return win_w <= screen_w - 2 * MARGIN and win_h <= screen_h - 2 * MARGIN
+
+
+def largest_size(screen_w, screen_h, is_round, col_gap, row_gap, start):
+    size = start
+    while True:
+        _, _, _, win_w, win_h = block(size + 1, col_gap, row_gap)
+        if not fits(screen_w, screen_h, is_round, win_w, win_h):
+            return size
+        size += 1
+
+
+def save(crops, prefix, tag):
+    for d, crop in enumerate(crops):
+        crop.save(os.path.join(DIGIT_DIR, "%s%d~%s.png" % (prefix, d, tag)), optimize=True)
 
 
 def build_icon():
@@ -84,18 +118,26 @@ def main():
         "",
     ]
     first = True
-    for tag, (width, size, col_gap, row_gap) in PLATFORMS.items():
-        height, widths = build_size(tag, size)
-        pair = max(a + b for a in widths for b in widths)
-        print("%s: font %d, digit height %d, widths %s, max pair %d"
-              % (tag, size, height, widths, pair))
-        lines += [
-            "#%s PBL_DISPLAY_WIDTH == %d" % ("if" if first else "elif", width),
-            "#define DIGIT_HEIGHT %d" % height,
-            "#define DIGIT_MAX_PAIR_WIDTH %d" % pair,
-            "#define DIGIT_COL_GAP %d" % col_gap,
-            "#define DIGIT_ROW_GAP %d" % row_gap,
-        ]
+    for tag, (width, height, is_round, small_size, small_col, small_row) in PLATFORMS.items():
+        col_gap = max(6, round(width * COL_GAP_SHARE))
+        row_gap = max(8, round(height * ROW_GAP_SHARE))
+        size = largest_size(width, height, is_round, col_gap, row_gap, small_size)
+        sets = {
+            "L": (size, col_gap, row_gap, ""),
+            "S": (small_size, small_col, small_row, "s"),
+        }
+        lines.append("#%s PBL_DISPLAY_WIDTH == %d" % ("if" if first else "elif", width))
+        for name, (font_size, cg, rg, prefix) in sets.items():
+            digit_h, crops, pair, win_w, win_h = block(font_size, cg, rg)
+            save(crops, prefix, tag)
+            print("%s %s: font %d, digit height %d, max pair %d, window %dx%d"
+                  % (tag, name, font_size, digit_h, pair, win_w, win_h))
+            lines += [
+                "#define DIGIT_%s_HEIGHT %d" % (name, digit_h),
+                "#define DIGIT_%s_MAX_PAIR_WIDTH %d" % (name, pair),
+                "#define DIGIT_%s_COL_GAP %d" % (name, cg),
+                "#define DIGIT_%s_ROW_GAP %d" % (name, rg),
+            ]
         first = False
     lines += ["#else", '#error "No digit metrics for this display width"', "#endif", ""]
     with open(METRICS, "w") as f:
