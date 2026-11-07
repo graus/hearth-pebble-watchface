@@ -32,6 +32,17 @@
       "configurable",
       "location"
     ],
+    "usesPermissions": [
+      "Location",
+      {
+        "name": "Internet",
+        "parameters": {
+          "domains": [
+            "api.open-meteo.com"
+          ]
+        }
+      }
+    ],
     "messageKeys": [
       "FrameRate",
       "Animate",

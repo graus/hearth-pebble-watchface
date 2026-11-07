@@ -21,8 +21,9 @@ fire that responds to the world around it:
   (color watches).
 - **Time of day:** low flames by day, high at night, rising through dusk and
   dying down at dawn, from your local sunrise and sunset.
-- **Accelerometer:** tap the watch or flick your wrist to stoke the fire, and
-  on color watches tilt it to make the flames lean.
+- **Touch and motion:** touch the screen (Pebble Time 2, Round 2) or flick
+  your wrist to stoke the fire, and on color watches tilt it and the flames
+  stay upright, like a candle's.
 
 On B&W watches the fire is drawn with ordered dithering. Emery and Flint can
 add a crackling sound, and Emery's RGB backlight can flicker with the flames.
@@ -63,8 +64,8 @@ back.
 | Flame height | Set by | me, outside temperature, time of day | me | all |
 | | Flame height | 1-10 (tip heat 0-20, 5 = 9) | 5 | all |
 | Wind | Set by | me, local wind | me | color |
-| | Wind | -2 .. +2 (0 is the Doom fire's own slight lean left) | 0 | color |
-| | Tilt the watch to blow | on/off | off | color |
+| | Wind | -2 .. +2 (0 upright) | 0 | color |
+| | Flames stay upright as you tilt | on/off | off | color |
 | Colors | Color theme | Classic, Ember, Blue, Green, Purple, Custom | Classic | color |
 | | Custom colors | 3 color pickers (embers, flames, hottest) | red, orange, yellow | color, Custom theme |
 | Animation | Flames move | always, for 30 s after a tap | always | all |
@@ -88,17 +89,20 @@ also has a palette preview and a "Reset to defaults" button.
 ### Battery
 
 - **Animate: On tap** saves the most battery. The flames freeze 30 seconds
-  after the last wrist tap or shake. While frozen, the frame timer, the
-  backlight override, the crackle and the tilt sensor are all stopped, and
-  only the minute tick wakes the watch.
+  after the last tap (a touch on the screen, or a sharp flick of the wrist).
+  While frozen, the frame timer, the backlight override, the crackle and the
+  tilt sensor are all stopped, and only the minute tick wakes the watch.
 - The face also pauses while a notification covers it.
 - Lower frame rates and coarser resolutions cost less.
 
 ### Tap to stoke
 
-Tap the watch or flick your wrist and the flames leap up, then settle back over
-a few seconds. It uses the accelerometer's tap events, which cost nothing
-between taps. With Animate: On tap, the same tap also wakes the face.
+Touch the screen (Pebble Time 2, Round 2) or flick your wrist sharply and the
+flames leap up, then settle back over a few seconds. A flick is the
+accelerometer's tap event, which costs nothing between taps; a finger on the
+glass does not register as one, so the touchscreen watches also listen for a
+touch, with the touch sensor on only while taps are in use. With Animate: On
+tap, the same tap also wakes the face.
 
 ### Flame height and wind from outside
 
@@ -142,7 +146,7 @@ height and Wind settings until the first values arrive. The app declares the
 The SDK refuses microphone access to watchfaces: `mic_capture_start` returns
 `MicCaptureStartErrWatchface`, and the header says "Watchfaces can never
 stream". A breath-controlled fire would have to be a separate watchapp (with a
-Microphone grant), not this face. Tap to stoke and Tilt the watch to blow are the
+Microphone grant), not this face. Tap to stoke and Flames stay upright as you tilt are the
 accelerometer alternatives.
 
 ### Flickering backlight (emery)
@@ -152,8 +156,7 @@ backlight on** and tints it from the flames. That overrides the backlight
 timeout and the ambient light sensor, and **drains the battery quickly**.
 Hearth gives the light back to the system whenever the setting is off, the
 face is frozen (Animate: On tap), or a notification covers the face. The
-setting is off by default because of the battery cost (the original spec had
-it on).
+setting is off by default because of the battery cost.
 
 ### Crackling sound (emery, flint)
 
@@ -169,8 +172,7 @@ It stays silent when the watch speaker is muted (on the watch: Settings,
 Sounds), during Quiet Time, and while anything else is playing. When it is
 silent for one of those reasons it says so once in `pebble logs`. Turning
 the sound on or changing its volume plays one crackle at once. The volume
-setting runs from 10 to 100 % of the speaker; the spec's 2-20 % was too
-quiet to hear on a watch.
+setting runs from 10 to 100 % of the speaker.
 
 ## How it works
 
@@ -193,8 +195,17 @@ quiet to hear on a watch.
     again in the same frame, so rows come from a table measured per wind on
     the host. Changing the flame height (from the setting, the sun or the
     temperature) only changes the row count. The algorithm is untouched.
-  - **Wind = Doom's `+ 1`.** Wind 0 is Doom exactly, which leans left half a
-    cell per row. Wind 1 leans as much to the right, and wind ±2 leans further.
+  - **Wind = Doom's `+ 1`.** Each wind level picks the offset in Doom's
+    `dst = src - randIdx + 1`. Measured on the host, the flames drift -1.76,
+    -0.70, +0.18, +1.05 and +2.02 cells per row for wind -2 to +2: 0 stands
+    upright and the two directions match. Doom's own `+ 1` leans slightly
+    left, so it is wind -1 here: its column order carries heat to the right a
+    little within each frame, which makes the next offset the upright one.
+  - **Tilt** (color watches, optional) adds to the wind so the flames keep
+    pointing up like a candle's: lower the right side of the watch and they
+    lean left, toward the higher side. Below about 20 degrees of tilt nothing
+    changes; about 45 degrees is a full lean. Wind and tilt together are
+    capped at ±2.
   - **Stoke and the minute flare** add heat to every cell at once, which
     Doom's fire then burns down. This is an event from outside, like Doom's
     own "fire on/off".
@@ -215,26 +226,21 @@ quiet to hear on a watch.
 - `src/c/backlight.c` (emery) handles the backlight and `src/c/crackle.c`
   (emery, flint) handles the sound.
 
-### Departures from the spec
+### Design choices
 
-The spec's engine (cooling as a chance in 64ths, a 4-entry shift table,
-turbulence) is replaced by the faithful Doom algorithm above, at the owner's
-request. With that change:
-
-| What | Spec | Now | Why |
-|---|---|---|---|
-| Flame height | cooling chance per row | number of Doom rows, stretched over the window | Keeps Doom's rule untouched. |
-| Turbulence setting | Calm, Normal, Wild | removed | Doom has one fixed offset distribution. |
-| Wind | added to a shift table | Doom's `+ 1` constant | Same reason. Wind 0 is Doom's own lean. |
-| Flare on the minute | +fuel for about 1 s | +8 heat to every cell at once | Doom's fuel row is already at full heat. |
-| Grid edges | padding cells, written but never read | wrap within the row | As close to Doom's own wrap as a 2-D grid allows. |
-| B&W dither ramp | not specified | no dots at heat 6 or below, solid at 30 or above, linear between | A linear 0-36 ramp reads as a halftone gradient. This one gives a solid base with broken, flickering tips. |
-| Backlight center | 227 fixed | running average, starting at 227 | Keeps the flicker centered when the flame height moves the mean heat. |
-| Flickering backlight default | on | off | It keeps the backlight lit while the flames move, the biggest battery cost on emery by far. |
-| Digit font | a heavy geometric sans (Montserrat ExtraBold) | Rubik Black | A heavier face shows more fire. |
-| Digit size | font 59/59/110/104, gaps 8/8/16/15 and 14/14/28/26 | two sets: as large as each screen allows (digits 68/57/97/84 px tall, gaps about 5 % and 6 % of the screen, 4 px margin), and the earlier size (43/43/81/76 px) while Quick View shows | On a real Pebble Time 2 the spec's size left wide margins; every screen now fills, and Quick View still fits. |
-
-Everything else uses the spec's values: tip heat 9, 10 fps and 2 px cells.
+| What | Choice | Why |
+|---|---|---|
+| Fire | the PSX Doom fire, unchanged | Simple, cheap and recognisable; everything else adapts around it. |
+| Flame height | number of Doom rows, stretched over the window | Keeps Doom's rule untouched. |
+| Wind | Doom's `+ 1` offset, levels chosen so 0 is upright | Same reason, with an even scale both ways. |
+| Flare on the minute, stoke | +8 or +10 heat to every cell at once | Doom's fuel row is already at full heat. |
+| Grid edges | wrap within the row | As close to Doom's own wrap as a 2-D grid allows. |
+| B&W dither ramp | no dots at heat 6 or below, solid at 30 or above, linear between | A linear 0-36 ramp reads as a halftone gradient. This one gives a solid base with broken, flickering tips. |
+| Backlight center | running average, starting at 227 | Keeps the flicker centered when the flame height moves the mean heat. |
+| Flickering backlight | off by default | It keeps the backlight lit while the flames move, the biggest battery cost on emery by far. |
+| Digit font | Rubik Black | A heavy face shows more fire. |
+| Digit size | two sets: as large as each screen allows (digits 68/57/97/84 px tall on 144/180/200/260 px wide screens, gaps about 5 % and 6 % of the screen, 4 px margin), and a compact set (43/43/81/76 px) while Quick View shows | Every screen fills, and Quick View still fits. |
+| Defaults | tip heat 9 (flame height 5), 10 fps, 2 px cells | Fire to about the top of the hours, smooth enough, light on battery. |
 
 ## Measurements (emulator, SDK 4.44)
 

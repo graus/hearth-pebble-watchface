@@ -10,8 +10,7 @@
 //     measured per wind), and the renderer stretches them over the digit
 //     window.
 //   - Wind: the "+ 1" in Doom's `dst = src - randIdx + 1` sets the drift
-//     (Doom's own fire leans left half a cell per row); wind changes that
-//     constant.
+//     (Doom's own fire leans slightly left); wind changes that constant.
 //   - Edges wrap around within the row; Doom's flat array wraps into the
 //     neighboring row instead, which has no meaning on a watch.
 
@@ -44,8 +43,8 @@ uint16_t fire_height(const Fire *fire);
 // Reach: the mean heat at the top row (the flame tips), 0..FIRE_MAX_REACH.
 // Sets the number of rows (as does the wind).
 void fire_set_reach(Fire *fire, uint8_t top_heat);
-// Wind: -2..3, added to Doom's "+ 1". 0 is Doom exactly (a slight lean to
-// the left); 1 leans as much to the right.
+// Wind: -2..2 (negative leans left, positive right). 0 is upright; Doom's
+// own slight left lean is -1. Mapped to Doom's "+ 1" offset (0..4).
 void fire_set_wind(Fire *fire, int8_t wind);
 
 // Stoke: add heat to every cell at once (clamped), for an immediate leap

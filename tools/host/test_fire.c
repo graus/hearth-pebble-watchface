@@ -81,8 +81,8 @@ int main(void) {
       int cell = 1 << shift;
       int window_w = pl->bw ? ((pl->window_w + 7 + 7) & ~7) : pl->window_w;
       int w = (window_w + cell - 1) / cell;
-      // Wind: the settings give -2..2, tilt can add one more.
-      for (int wind = -2; wind <= 3; wind++) {
+      // Wind: -2..2 (setting, weather or tilt; the sum is capped).
+      for (int wind = -2; wind <= 2; wind++) {
         if (pl->bw && wind != 0) continue;  // B&W has no wind settings
         static const int reaches[] = {0, 1, 3, 6, 9, 12, 16, 20};
         for (size_t ri = 0; ri < sizeof(reaches) / sizeof(reaches[0]); ri++) {
