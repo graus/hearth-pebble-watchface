@@ -5,3 +5,4 @@ tools/host/test_fire
 tools/host/test_daylight
 __pycache__/
 package-lock.json
+/screenshots/
