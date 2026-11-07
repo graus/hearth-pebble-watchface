@@ -238,6 +238,10 @@ each resolution where it applies:
 | emery | 109,996 | 102,140 | 109,996 | 113,876 |
 | gabbro | 112,392 | 105,020 | 112,392 | 116,080 |
 
+These were measured with the earlier digit font. Rubik Black's flame window
+is 8 px wider on emery and 6 px on gabbro, which adds under 1 KB to the Fine
+grid there; the other platforms are unchanged.
+
 The engine always allocates its maximum number of rows (97), so changing the
 flame height never allocates memory. Fine fits comfortably everywhere, so no
 platform hides it. Switching resolutions back and forth returned to exactly
