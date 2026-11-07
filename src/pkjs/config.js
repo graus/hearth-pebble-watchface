@@ -70,14 +70,14 @@ module.exports = [
         min: -2,
         max: 2,
         step: 1,
-        description: 'Below 0 the flames lean left, above 0 right; 2 is a strong wind. At 0 they lean just slightly left, as in the original Doom fire.'
+        description: 'Below 0 the flames lean left, above 0 right; 2 is a strong wind. At 0 they stand upright (the original Doom fire leans slightly left, as at -1).'
       },
       {
         type: 'toggle',
         messageKey: 'TiltWind',
-        label: 'Tilt the watch to blow',
+        label: 'Flames stay upright as you tilt',
         defaultValue: false,
-        description: 'Tilting your wrist left or right adds wind that way, on top of the wind above.'
+        description: 'Like a candle: tilt your wrist and the flames keep pointing up, leaning across the screen. Adds to the wind above.'
       }
     ]
   },

@@ -74,7 +74,7 @@ Fire *fire_create(uint16_t w, uint32_t seed) {
   }
   fire->w = w;
   fire->rng = seed ? seed : 0x9E3779B9u;
-  fire->offset = 1;
+  fire->offset = 2;  // wind 0: upright (see fire_set_wind)
   fire->top_heat = 9;
   fire->h = rows_for(fire);
   // Start settled: an even gradient from the tip heat at the top to the fuel,
@@ -159,11 +159,16 @@ void fire_set_reach(Fire *fire, uint8_t top_heat) {
   update_rows(fire);
 }
 
+// Wind levels map to Doom's "+ 1" offset so the scale is even both ways.
+// Measured lean (cells per row, host): offset 0: -1.73, 1: -0.73 (Doom's
+// own), 2: +0.17, 3: +1.05, 4: +2.02. Doom's column order carries heat to
+// the right a little within each frame, so offset 2, not 1, is the upright
+// one; levels -2..2 use offsets 0..4.
 void fire_set_wind(Fire *fire, int8_t wind) {
-  if (wind > 3) wind = 3;
+  if (wind > 2) wind = 2;
   if (wind < -2) wind = -2;
-  if (fire->offset != 1 + wind) {
-    fire->offset = 1 + wind;
+  if (fire->offset != 2 + wind) {
+    fire->offset = 2 + wind;
     update_rows(fire);
   }
 }

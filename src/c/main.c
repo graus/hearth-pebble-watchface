@@ -287,7 +287,10 @@ static void frame(void *context) {
   if (s_tilt_subscribed) {
     AccelData accel;
     if (accel_service_peek(&accel) == 0) {
-      fire_set_wind(s_fire, base_wind() + accel.x / TILT_PER_WIND);
+      // Like a real flame, the fire keeps pointing up as the watch tilts:
+      // with the right side lowered, gravity pulls toward +x, so the flames
+      // lean left (toward the higher side), and the other way round.
+      fire_set_wind(s_fire, base_wind() - accel.x / TILT_PER_WIND);
     }
   }
 #endif
