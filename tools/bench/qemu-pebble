@@ -1,0 +1,8 @@
+#!/bin/sh
+# Emulator wrapper for benchmarks: the same qemu-pebble, but the guest clock
+# counts instructions (-icount, 8 ns each) instead of following the host, so
+# time_ms inside an app measures CPU work rather than how fast this machine
+# is. Use it by putting this directory first via pebble-tool's
+# PEBBLE_EXTRA_PATH (see the README's "Compared with Fireplace").
+REAL="${PEBBLE_QEMU:-$HOME/.local/share/pebble-sdk/SDKs/current/toolchain/bin/qemu-pebble}"
+exec "$REAL" "$@" -icount shift=3,align=off,sleep=on
