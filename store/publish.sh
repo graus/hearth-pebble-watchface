@@ -19,7 +19,12 @@ done
 ls store/screenshots/*.gif store/screenshots/*.png >/dev/null 2>&1 || {
   echo "no screenshots in store/screenshots"; exit 1; }
 
-pebble login --status
+# `pebble login --status` succeeds even when logged out, so read its output.
+status=$(pebble login --status 2>&1) || true
+echo "$status"
+case "$status" in
+  *"logged out"*) echo "Not signed in to the store: run 'pebble login' first."; exit 1 ;;
+esac
 
 echo
 echo "About to publish Hearth $(python3 -c "import json;print(json.load(open('package.json'))['version'])") to the Pebble app store."
