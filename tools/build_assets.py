@@ -21,17 +21,20 @@ import sys
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONT = os.path.join(ROOT, "tools", "fonts", "Montserrat-ExtraBold.ttf")
+FONT = os.path.join(ROOT, "tools", "fonts", "Rubik-Black.ttf")
 DIGIT_DIR = os.path.join(ROOT, "resources", "digits")
 METRICS = os.path.join(ROOT, "src", "c", "generated", "metrics.h")
 ICON = os.path.join(ROOT, "resources", "images", "menu_icon.png")
 
 # tag: (display width, font size, column gap, row gap)
 PLATFORMS = {
-    "144w": (144, 59, 8, 14),
-    "180w": (180, 59, 8, 14),
-    "200w": (200, 110, 16, 28),
-    "260w": (260, 104, 15, 26),
+    # Sizes give the same digit heights as before (43, 43, 81, 76 px) in
+    # Rubik Black, a heavier face than the earlier Montserrat ExtraBold, so
+    # more of each digit is fire.
+    "144w": (144, 58, 8, 14),
+    "180w": (180, 58, 8, 14),
+    "200w": (200, 113, 16, 28),
+    "260w": (260, 105, 15, 26),
 }
 
 

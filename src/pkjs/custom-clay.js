@@ -8,7 +8,7 @@ module.exports = function() {
     FrameRate: '10', FlameHeight: 5, Resolution: '1', Wind: 0,
     Theme: '0', CustomEmber: 0xFF0000, CustomFlame: 0xFF5500, CustomHot: 0xFFFF00,
     Animate: '0', Flare: false, TiltWind: false, Backlight: false, Flicker: 100,
-    Crackle: true, Volume: 3, Stoke: true, HeightSource: '0', WindFollowsWeather: false
+    Crackle: true, Volume: 3, Stoke: true, HeightSource: '0', WindFollowsWeather: '0'
   };
 
   // Same stops as src/c/flames.c, for the gradient preview.
@@ -64,9 +64,14 @@ module.exports = function() {
       });
       updatePreview();
     }
+    // Each slider only matters when its 'Set by' is 'Me'.
     var source = item('HeightSource');
     if (source) {
       if (source.get() === '0') item('FlameHeight').show(); else item('FlameHeight').hide();
+    }
+    var windSource = item('WindFollowsWeather');
+    if (windSource && item('Wind')) {
+      if (String(windSource.get()) === '0') item('Wind').show(); else item('Wind').hide();
     }
     var backlight = item('Backlight');
     if (backlight) {
@@ -75,7 +80,7 @@ module.exports = function() {
   }
 
   clayConfig.on(clayConfig.EVENTS.AFTER_BUILD, function() {
-    ['Theme', 'CustomEmber', 'CustomFlame', 'CustomHot', 'Backlight', 'HeightSource'].forEach(function(key) {
+    ['Theme', 'CustomEmber', 'CustomFlame', 'CustomHot', 'Backlight', 'HeightSource', 'WindFollowsWeather'].forEach(function(key) {
       var it = item(key);
       if (it) it.on('change', updateVisibility);
     });
