@@ -157,15 +157,20 @@ it on).
 
 ### Crackling sound (emery, flint)
 
-Hearth plays short pops of decaying noise with random pitch and loudness, in
-clusters. It stays silent when the watch speaker is muted (on the watch:
-Settings, Sounds), during Quiet Time, and while anything else is playing.
-When it is silent for one of those reasons it says so once in `pebble logs`.
-Turning the sound on or changing its volume plays one pop at once.
+Every crackle is synthesised afresh on the watch (`src/c/crackle_synth.c`),
+so no two sound alike: a cluster of one to five sharp snaps a few to 35 ms
+apart, each a click that dies away within a few milliseconds, sometimes with
+the duller, lower pop of a bursting sap pocket, and a faint ember hiss after.
+It plays at 16 kHz, in clusters of crackles with mostly longer gaps. To hear
+it on a computer, `make -C tools/host crackle.wav` renders 12 seconds with
+the same code and timing.
 
-The volume setting runs from 10 to 100 % of the speaker. The spec's 2-20 %,
-with 40 ms pops that decayed within about 10 ms, was too quiet to hear on a
-watch, so the pops are now 60 ms and fade more slowly.
+It stays silent when the watch speaker is muted (on the watch: Settings,
+Sounds), during Quiet Time, and while anything else is playing. When it is
+silent for one of those reasons it says so once in `pebble logs`. Turning
+the sound on or changing its volume plays one crackle at once. The volume
+setting runs from 10 to 100 % of the speaker; the spec's 2-20 % was too
+quiet to hear on a watch.
 
 ## How it works
 

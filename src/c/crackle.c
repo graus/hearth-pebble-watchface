@@ -4,17 +4,22 @@
 
 #include <stdlib.h>
 
-#define SAMPLE_LEN 480  // 60 ms at 8 kHz
+#include "crackle_synth.h"
+
 #define BASE_NOTE 60
 
-static int8_t s_sample_data[SAMPLE_LEN];
-static const SpeakerSample s_sample = {
+// Each crackle is synthesised afresh just before it plays (only when the
+// speaker is idle, so the buffer is never rewritten mid-play) and played at
+// its own pitch: no two sound the same.
+static int8_t s_sample_data[CRACKLE_MAX_SAMPLES];
+static SpeakerSample s_sample = {
   .data = s_sample_data,
-  .num_bytes = SAMPLE_LEN,
-  .format = SpeakerPcmFormat_8kHz_8bit,
+  .num_bytes = CRACKLE_MAX_SAMPLES,
+  .format = SpeakerPcmFormat_16kHz_8bit,
   .base_midi_note = BASE_NOTE,
   .loop = false,
 };
+static uint32_t s_rng;
 static SpeakerNote s_note;
 static const SpeakerTrack s_track = {
   .notes = &s_note,
@@ -30,15 +35,7 @@ typedef enum { SilentNo = 0, SilentMuted, SilentQuietTime, SilentFailed } Silent
 static Silent s_silent;
 
 void crackle_init(void) {
-  // One burst of noise that decays over the 60 ms: a pop, not a hiss. The
-  // first version decayed to nothing within about 10 ms, which on a watch
-  // speaker is a click too short to hear.
-  int32_t amp = 127 << 8;
-  for (int i = 0; i < SAMPLE_LEN; i++) {
-    int noise = rand() % 255 - 127;
-    s_sample_data[i] = (int8_t)(noise * (amp >> 8) / 127);
-    amp = amp * 255 / 256;
-  }
+  s_rng = (uint32_t)rand() | 1;
 }
 
 static void report(Silent why) {
@@ -65,11 +62,12 @@ static void pop(uint8_t volume) {
   if (speaker_get_status() != SpeakerStatusIdle) {
     return;
   }
-  // Random pitch and loudness make one sample sound like many different pops.
+  uint16_t len = crackle_synth(s_sample_data, &s_rng);
+  s_sample.num_bytes = len;
   s_note = (SpeakerNote){
-    .midi_note = BASE_NOTE - 12 + rand() % 30,
+    .midi_note = BASE_NOTE,
     .waveform = SpeakerWaveformSine,
-    .duration_ms = 60,
+    .duration_ms = (uint16_t)(len * 1000 / CRACKLE_RATE + 5),
     .velocity = 80 + rand() % 48,
   };
   // Volume 1..10 is 10..100 % of the speaker. (The first version used 2..20 %,
