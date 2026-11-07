@@ -2,11 +2,30 @@
 
 A Pebble watch face that shows the time as four large digits (HH over MM),
 each one a window onto a live fire. Wherever a digit is you see flames;
-everywhere else the screen is black. The fire is the [PSX Doom
-fire](https://fabiensanglard.net/doom_fire_psx/), ported faithfully and
-simulated live on every platform. On B&W watches it is drawn with ordered
-dithering. Emery and Flint can add a crackling sound, and Emery's RGB
-backlight can flicker with the flames.
+everywhere else the screen is black.
+
+Hearth is inspired by Yuri Galanter's
+[Fireplace](https://github.com/ygalanter/fireplace), which plays recorded
+flames through the time digits. Hearth draws its flames with the excellent
+[PSX Doom fire](https://fabiensanglard.net/doom_fire_psx/) instead: a
+ten-line rule that turns a bottom row of heat into rising, flickering flames.
+It is ported faithfully and computed live on the watch.
+
+The Doom fire is so simple and efficient that a frame of fire costs about a
+millisecond or less, 10-39 times less work than decoding a recorded frame (see
+[Compared with Fireplace](#compared-with-fireplace)). That leaves room for a
+fire that responds to the world around it:
+
+- **Weather:** the colder it is outside, the higher the flames burn.
+- **Wind:** the flames lean with the local wind, or with a wind you set
+  (color watches).
+- **Time of day:** low flames by day, high at night, rising through dusk and
+  dying down at dawn, from your local sunrise and sunset.
+- **Accelerometer:** tap the watch or flick your wrist to stoke the fire, and
+  on color watches tilt it to make the flames lean.
+
+On B&W watches the fire is drawn with ordered dithering. Emery and Flint can
+add a crackling sound, and Emery's RGB backlight can flicker with the flames.
 
 | basalt | chalk | emery | gabbro |
 |---|---|---|---|
