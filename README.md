@@ -198,10 +198,12 @@ quiet to hear on a watch.
   - **Stoke and the minute flare** add heat to every cell at once, which
     Doom's fire then burns down. This is an event from outside, like Doom's
     own "fire on/off".
-- `src/c/layout.c` centers each row by its real width, and centers the block
-  in the unobstructed bounds (shrinking the row gap first when space is
-  short). It derives the flame window from the worst-case metrics in
-  `src/c/generated/metrics.h`.
+- `src/c/layout.c` picks one of two digit sets: a large one that fills the
+  screen, or a compact one when Timeline Quick View covers the bottom of the
+  screen and the large block no longer fits. It centers each row by its real
+  width and the block in the unobstructed bounds (shrinking the row gap first
+  when space is short), and derives the flame window from the set's
+  worst-case metrics in `src/c/generated/metrics.h`.
 - `src/c/flames.c` draws the digits white, then rewrites only the white
   pixels inside the flame window. Color platforms take one palette lookup per
   digit pixel, using `gbitmap_get_data_row_info` so round screens get the
@@ -229,29 +231,30 @@ request. With that change:
 | B&W dither ramp | not specified | no dots at heat 6 or below, solid at 30 or above, linear between | A linear 0-36 ramp reads as a halftone gradient. This one gives a solid base with broken, flickering tips. |
 | Backlight center | 227 fixed | running average, starting at 227 | Keeps the flicker centered when the flame height moves the mean heat. |
 | Flickering backlight default | on | off | It keeps the backlight lit while the flames move, the biggest battery cost on emery by far. |
-| Digit font | a heavy geometric sans (Montserrat ExtraBold) | Rubik Black at 58/58/113/105, the same digit heights | A heavier face shows more fire. |
+| Digit font | a heavy geometric sans (Montserrat ExtraBold) | Rubik Black | A heavier face shows more fire. |
+| Digit size | font 59/59/110/104, gaps 8/8/16/15 and 14/14/28/26 | two sets: as large as each screen allows (digits 68/57/97/84 px tall, gaps about 5 % and 6 % of the screen, 4 px margin), and the earlier size (43/43/81/76 px) while Quick View shows | On a real Pebble Time 2 the spec's size left wide margins; every screen now fills, and Quick View still fits. |
 
-Everything else uses the spec's values: gaps
-8/8/16/15 and 14/14/28/26, tip heat 9, 10 fps and 2 px cells.
+Everything else uses the spec's values: tip heat 9, 10 fps and 2 px cells.
 
 ## Measurements (emulator, SDK 4.44)
 
-Free heap after startup with the default settings (2 px on color), and with
-each resolution where it applies:
+Free heap after startup with the default settings (Normal 2 px on color),
+with the large digits:
 
-| Platform | Default | Fine 1 px | Normal 2 px | Chunky 4 px |
-|---|---|---|---|---|
-| aplite | 12,500 | - | - | (B&W, 4 px) |
-| diorite | 54,052 | - | - | (B&W, 4 px) |
-| flint | 53,132 | - | - | (B&W, 4 px) |
-| basalt | 51,316 | 47,144 | 51,316 | 53,352 |
-| chalk | 51,488 | not measured | 51,488 | not measured |
-| emery | 109,996 | 102,140 | 109,996 | 113,876 |
-| gabbro | 112,392 | 105,020 | 112,392 | 116,080 |
+| Platform | Free heap |
+|---|---|
+| aplite | 9,924 |
+| diorite | 51,476 |
+| flint | 41,036 |
+| basalt | 47,700 |
+| chalk | 48,924 |
+| emery | 97,216 |
+| gabbro | 109,856 |
 
-These were measured with the earlier digit font. Rubik Black's flame window
-is 8 px wider on emery and 6 px on gabbro, which adds under 1 KB to the Fine
-grid there; the other platforms are unchanged.
+Fine (1 px) doubles the fire's columns: about 6.5 KB more on basalt and
+9.3 KB more on emery (97 rows of 135 or 192 columns), which still fits
+comfortably. Flint has less free than diorite because of its speaker
+buffers (8.6 KB for the crackle).
 
 The engine always allocates its maximum number of rows (97), so changing the
 flame height never allocates memory. Fine fits comfortably everywhere, so no
@@ -336,8 +339,9 @@ pebble build
 pebble install --emulator emery
 ```
 
-`tools/build_assets.py` (needs Pillow) generates the digit bitmaps
-(`resources/digits/<d>~<tag>.png`, tags `144w`, `180w`, `200w` and `260w`),
+`tools/build_assets.py` (needs Pillow) generates both digit sets
+(`resources/digits/<d>~<tag>.png` large and `s<d>~<tag>.png` compact, tags
+`144w`, `180w`, `200w` and `260w`),
 `src/c/generated/metrics.h` and the menu icon. The generated files are
 committed, so a plain `pebble build` works without Python.
 

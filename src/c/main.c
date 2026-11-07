@@ -22,17 +22,26 @@
 // Log the average frame cost once, after this many frames.
 #define PROFILE_FRAMES 100
 
-static const uint32_t s_digit_resources[10] = {
-  RESOURCE_ID_DIGIT_0, RESOURCE_ID_DIGIT_1, RESOURCE_ID_DIGIT_2, RESOURCE_ID_DIGIT_3,
-  RESOURCE_ID_DIGIT_4, RESOURCE_ID_DIGIT_5, RESOURCE_ID_DIGIT_6, RESOURCE_ID_DIGIT_7,
-  RESOURCE_ID_DIGIT_8, RESOURCE_ID_DIGIT_9,
+static const uint32_t s_digit_resources[2][10] = {
+  [DigitSetLarge] = {
+    RESOURCE_ID_DIGIT_0, RESOURCE_ID_DIGIT_1, RESOURCE_ID_DIGIT_2, RESOURCE_ID_DIGIT_3,
+    RESOURCE_ID_DIGIT_4, RESOURCE_ID_DIGIT_5, RESOURCE_ID_DIGIT_6, RESOURCE_ID_DIGIT_7,
+    RESOURCE_ID_DIGIT_8, RESOURCE_ID_DIGIT_9,
+  },
+  [DigitSetCompact] = {
+    RESOURCE_ID_DIGIT_S_0, RESOURCE_ID_DIGIT_S_1, RESOURCE_ID_DIGIT_S_2, RESOURCE_ID_DIGIT_S_3,
+    RESOURCE_ID_DIGIT_S_4, RESOURCE_ID_DIGIT_S_5, RESOURCE_ID_DIGIT_S_6, RESOURCE_ID_DIGIT_S_7,
+    RESOURCE_ID_DIGIT_S_8, RESOURCE_ID_DIGIT_S_9,
+  },
 };
 
 static Window *s_window;
 static Layer *s_canvas;
 
 static GBitmap *s_digits[4];
-static uint8_t s_digit_values[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+static uint8_t s_digit_values[4] = {0xFF, 0xFF, 0xFF, 0xFF};  // loaded bitmaps
+static uint8_t s_time_digits[4];                                // the time to show
+static DigitSet s_digit_set = DigitSetLarge;
 static Layout s_layout;
 
 static Fire *s_fire;
@@ -170,29 +179,43 @@ static void rebuild_fire(void) {
 // ---------------------------------------------------------------------------
 // Digits and layout
 
-static void update_layout(void) {
-  GSize sizes[4];
-  for (int i = 0; i < 4; i++) {
-    sizes[i] = s_digits[i] ? gbitmap_get_bounds(s_digits[i]).size : GSize(0, 0);
-  }
-  GRect bounds = layer_get_bounds(s_canvas);
-  layout_compute(&s_layout, layer_get_unobstructed_bounds(s_canvas), bounds.size.w, sizes);
-  if (s_layout.window.size.w != s_fire_window_w) {
-    rebuild_fire();
-  }
-}
-
 static void set_digit(int index, uint8_t value) {
   if (s_digit_values[index] == value) {
     return;  // only changed digits are reloaded
   }
-  GBitmap *bitmap = gbitmap_create_with_resource(s_digit_resources[value]);
+  GBitmap *bitmap = gbitmap_create_with_resource(s_digit_resources[s_digit_set][value]);
   if (!bitmap) {
     return;  // keep the old digit rather than show a hole
   }
   gbitmap_destroy(s_digits[index]);
   s_digits[index] = bitmap;
   s_digit_values[index] = value;
+}
+
+// Picks the digit set for the visible area (large, or compact while Timeline
+// Quick View covers the bottom of the screen), loads the time's digits in it,
+// and lays them out.
+static void update_layout(void) {
+  GRect area = layer_get_unobstructed_bounds(s_canvas);
+  DigitSet set = layout_choose_set(area.size.h);
+  if (set != s_digit_set) {
+    s_digit_set = set;
+    for (int i = 0; i < 4; i++) {
+      s_digit_values[i] = 0xFF;  // force a reload in the new set
+    }
+  }
+  for (int i = 0; i < 4; i++) {
+    set_digit(i, s_time_digits[i]);
+  }
+  GSize sizes[4];
+  for (int i = 0; i < 4; i++) {
+    sizes[i] = s_digits[i] ? gbitmap_get_bounds(s_digits[i]).size : GSize(0, 0);
+  }
+  GRect bounds = layer_get_bounds(s_canvas);
+  layout_compute(&s_layout, s_digit_set, area, bounds.size.w, sizes);
+  if (s_layout.window.size.w != s_fire_window_w) {
+    rebuild_fire();
+  }
 }
 
 static void update_time(struct tm *t) {
@@ -202,11 +225,11 @@ static void update_time(struct tm *t) {
     if (hour == 0) hour = 12;
   }
   // Always four digits ("0907"), so the layout never jumps.
-  set_digit(0, hour / 10);
-  set_digit(1, hour % 10);
-  set_digit(2, t->tm_min / 10);
-  set_digit(3, t->tm_min % 10);
-  update_layout();
+  s_time_digits[0] = hour / 10;
+  s_time_digits[1] = hour % 10;
+  s_time_digits[2] = t->tm_min / 10;
+  s_time_digits[3] = t->tm_min % 10;
+  update_layout();  // loads changed digits (all of them if the set changed)
   layer_mark_dirty(s_canvas);
 }
 

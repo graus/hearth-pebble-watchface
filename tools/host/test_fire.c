@@ -16,11 +16,18 @@ typedef struct {
   int bw;
 } Platform;
 
+// Each platform has a large digit set and a compact one (for Timeline Quick
+// View); both windows are tested.
 static const Platform s_platforms[] = {
-  {"aplite/diorite/flint", 78 + 8, 1},
-  {"basalt/chalk", 78 + 8, 0},
-  {"emery", 154 + 16, 0},
-  {"gabbro", 144 + 15, 0},
+  {"aplite/diorite/flint large", 128 + 7, 1},
+  {"aplite/diorite/flint compact", 78 + 8, 1},
+  {"basalt large", 128 + 7, 0},
+  {"basalt/chalk compact", 78 + 8, 0},
+  {"chalk large", 108 + 9, 0},
+  {"emery large", 182 + 10, 0},
+  {"emery compact", 154 + 16, 0},
+  {"gabbro large", 158 + 13, 0},
+  {"gabbro compact", 144 + 15, 0},
 };
 
 static int s_failures;
