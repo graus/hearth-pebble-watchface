@@ -6,6 +6,7 @@
     "pebble-app"
   ],
   "private": true,
+  "license": "MIT",
   "dependencies": {
     "@rebble/clay": "^1.1.0"
   },
