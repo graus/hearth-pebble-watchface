@@ -227,6 +227,57 @@ QEMU does not model the real CPU's speed and `time_ms` is coarse, so treat
 these figures as relative only. They should be measured again on hardware.
 The face logs this line once per launch (`per frame: step ..., draw ...`).
 
+## Compared with Fireplace
+
+[Fireplace](https://github.com/ygalanter/fireplace) plays recorded flames.
+On color watches it decodes the next frame of an animated PNG each frame
+(`gbitmap_sequence_update_bitmap_next_frame`, about 36 KB of 8-bit pixels on
+emery). On B&W watches it copies the next 1.3 KB frame out of flash. Hearth
+computes its flames each frame instead. Both then recolor the digits the same
+way (one compare per pixel in the flame window), so the per-frame difference
+is that first step. Both run at 10 fps by default.
+
+**Per-frame work**, with each face's step run 200 times back to back. I used
+Fireplace from source, timed the same way (`tools/bench/bench.h`), on the SDK
+4.44 emulators. The emulators were run with an instruction-counting clock
+(`tools/bench/qemu-pebble`, QEMU `-icount`), so the times count CPU work
+rather than this machine's speed:
+
+| Platform | Fireplace (decode/copy a frame) | Hearth (Doom step, Normal 2 px) | Hearth is |
+|---|---|---|---|
+| aplite | 2.06-2.24 ms | 0.055 ms | ~39× less |
+| diorite (also flint) | 0.80-0.86 ms | 0.080 ms | ~10× less |
+| basalt (also chalk) | 4.02-4.24 ms | 0.095-0.120 ms | ~38× less |
+| emery | 30.9-31.3 ms | 1.15 ms | ~27× less |
+| gabbro | 28.4 ms | 1.10 ms | ~26× less |
+
+Compare these numbers within a row, not across platforms: emery's and
+gabbro's emulator boards count time differently from the older ones. Hearth
+with Fine (1 px) has twice the columns and so should do about twice
+Normal's step work (not measured); that is still an order of magnitude below
+Fireplace's frame decode.
+
+**Memory and storage**, from the same builds:
+
+| | Fireplace | Hearth |
+|---|---|---|
+| Free heap, basalt | 33,060 B | 51,316 B |
+| Free heap, emery | 49,376 B | 109,996 B |
+| Resources, basalt | 98 KB (recorded flames) | 7.6 KB (digits only) |
+| Resources, emery | 181 KB | 12 KB |
+
+Caveats:
+- These are instruction counts, not hardware cycles. On a real watch, both
+  faces' resource reads come from external flash with wait states. That costs
+  Fireplace every frame and Hearth only when a digit changes, so hardware
+  would likely widen the gap rather than close it. Measure on hardware to be
+  sure.
+- The step is not the whole frame. Recoloring the digits costs both faces
+  about the same (0.3-1 ms per frame on the plain emulator clock).
+- Fireplace's emery/gabbro build also tints the backlight from each decoded
+  frame. Hearth's backlight was off for these runs, and Fireplace's flicker
+  code was outside the timed step.
+
 ## Building
 
 ```sh
