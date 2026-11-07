@@ -11,4 +11,7 @@ void crackle_init(void);
 void crackle_start(uint8_t volume);
 void crackle_stop(void);
 
+// Plays one pop now at volume 1..10, so a settings change can be heard.
+void crackle_preview(uint8_t volume);
+
 #endif

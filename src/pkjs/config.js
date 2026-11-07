@@ -206,13 +206,14 @@ module.exports = [
         messageKey: 'Crackle',
         label: 'Crackling sound',
         defaultValue: true,
-        description: 'Silent when the speaker is muted or Quiet Time is on.'
+        description: 'Silent while the watch speaker is muted (on the watch: Settings, Sounds) or Quiet Time is on.'
       },
       {
         type: 'slider',
         messageKey: 'Volume',
         label: 'Crackle volume',
-        defaultValue: 3,
+        description: 'Saving a new volume plays one crackle so you can hear it.',
+        defaultValue: 5,
         min: 1,
         max: 10,
         step: 1

@@ -410,7 +410,18 @@ static void apply_settings(void) {
 
 static void inbox_received(DictionaryIterator *iter, void *context) {
   bool sky = sky_from_message(iter);
+#if defined(PBL_SPEAKER)
+  uint8_t old_crackle = s_settings.crackle, old_volume = s_settings.volume;
+#endif
   bool settings = settings_from_message(&s_settings, iter);
+#if defined(PBL_SPEAKER)
+  // Turning the crackle on or changing its volume plays one pop at once, so
+  // the level can be heard while it is being set.
+  if (settings && s_settings.crackle &&
+      (s_settings.crackle != old_crackle || s_settings.volume != old_volume)) {
+    crackle_preview(s_settings.volume);
+  }
+#endif
   if (settings) {
     settings_save(&s_settings);
     if (s_focused) {

@@ -75,7 +75,7 @@ back.
 | Backlight | Flickering backlight | on/off | off | emery |
 | | Flicker amount | 0-100 % | 100 | emery |
 | Sound | Crackling sound | on/off | on | emery, flint |
-| | Crackle volume | 1-10 | 3 | emery, flint |
+| | Crackle volume | 1-10 (10-100 % of the speaker) | 5 | emery, flint |
 
 The settings page shows only the sections a watch supports, and explains
 each setting in place. **Flame height** is how far the flames climb up the
@@ -158,8 +158,14 @@ it on).
 ### Crackling sound (emery, flint)
 
 Hearth plays short pops of decaying noise with random pitch and loudness, in
-clusters. It stays silent when the speaker is muted, during Quiet Time, and
-while anything else is playing.
+clusters. It stays silent when the watch speaker is muted (on the watch:
+Settings, Sounds), during Quiet Time, and while anything else is playing.
+When it is silent for one of those reasons it says so once in `pebble logs`.
+Turning the sound on or changing its volume plays one pop at once.
+
+The volume setting runs from 10 to 100 % of the speaker. The spec's 2-20 %,
+with 40 ms pops that decayed within about 10 ms, was too quiet to hear on a
+watch, so the pops are now 60 ms and fade more slowly.
 
 ## How it works
 
