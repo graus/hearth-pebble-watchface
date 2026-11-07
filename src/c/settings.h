@@ -57,5 +57,9 @@ void settings_save(const Settings *s);
 // value was found.
 bool settings_from_message(Settings *s, DictionaryIterator *iter);
 
+// Reads one integer from an AppMessage, whatever width and signedness the
+// phone used (or a decimal string). Returns false if the key is missing.
+bool settings_read_int(DictionaryIterator *iter, uint32_t key, int32_t *out);
+
 // Top heat for the fire engine from a 1..10 flame height.
 uint8_t settings_top_heat(uint8_t flame_height);

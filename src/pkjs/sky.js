@@ -40,8 +40,10 @@ function weatherMessage(json) {
 
 // Sunrise and sunset for the local day of `date`, in minutes after local
 // midnight, from the sunrise equation (as used by NOAA's calculator;
-// accurate to a few minutes). Polar night gives { rise: 0, set: 0 }, polar
-// day { rise: 0, set: 1440 }. A sunset after midnight counts as midnight.
+// accurate to a few minutes). Far north in summer, sunrise can fall before
+// midnight (negative) and sunset after it (above 1440); they are kept as is,
+// so the watch ramps the flames at the real dusk. Polar night gives
+// { rise: 0, set: 0 }, polar day { rise: 0, set: 1440 }.
 function sunTimes(date, latitude, longitude) {
   var rad = Math.PI / 180;
   var noon = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
@@ -65,9 +67,7 @@ function sunTimes(date, latitude, longitude) {
                               new Date(date.getFullYear(), date.getMonth(), date.getDate())) / 86400000);
     return dayDiff * 1440 + d.getHours() * 60 + d.getMinutes();
   }
-  var rise = Math.max(0, localMinutes(transit - hour));
-  var set = Math.min(1440, localMinutes(transit + hour));
-  return { rise: rise, set: set };
+  return { rise: localMinutes(transit - hour), set: localMinutes(transit + hour) };
 }
 
 function sunMessage(date, latitude, longitude) {
@@ -75,41 +75,62 @@ function sunMessage(date, latitude, longitude) {
   return { SunRise: t.rise, SunSet: t.set };
 }
 
-function send(message, what) {
-  Pebble.sendAppMessage(message, function() {
-    console.log(what + ' sent: ' + JSON.stringify(message));
-  }, function() {
-    console.log(what + ': send failed');
-  });
+// Sends one message, retrying once after a second if the watch does not
+// take it, and calls done() either way so messages go one at a time: a
+// second message sent while the first is still in flight can be dropped.
+function send(message, what, done) {
+  var tries = 0;
+  function attempt() {
+    tries++;
+    Pebble.sendAppMessage(message, function() {
+      console.log(what + ' sent: ' + JSON.stringify(message));
+      if (done) done();
+    }, function() {
+      if (tries < 2) {
+        setTimeout(attempt, 1000);
+      } else {
+        console.log(what + ': send failed');
+        if (done) done();
+      }
+    });
+  }
+  attempt();
 }
 
-// Fetches what the settings need: sun times (no network) and/or weather.
+// Fetches what the watch asked for: sun times (no network) and/or weather,
+// and sends them one after the other.
 function update(needSun, needWeather) {
   if (!needSun && !needWeather) return;
   navigator.geolocation.getCurrentPosition(function(pos) {
     var lat = pos.coords.latitude, lon = pos.coords.longitude;
-    if (needSun) send(sunMessage(new Date(), lat, lon), 'Sun');
-    if (!needWeather) return;
-    var req = new XMLHttpRequest();
-    req.onload = function() {
-      var message = null;
-      try {
-        message = weatherMessage(JSON.parse(req.responseText));
-      } catch (e) {
-        message = null;
-      }
-      if (message) {
-        send(message, 'Weather');
-      } else {
-        console.log('Weather: unexpected response ' + req.status);
-      }
-    };
-    req.onerror = function() {
-      console.log('Weather: request failed');
-    };
-    // Two decimals (about 1 km) is plenty for weather and shares less.
-    req.open('GET', URL + '&latitude=' + lat.toFixed(2) + '&longitude=' + lon.toFixed(2));
-    req.send();
+    function sendWeather() {
+      if (!needWeather) return;
+      var req = new XMLHttpRequest();
+      req.onload = function() {
+        var message = null;
+        try {
+          message = weatherMessage(JSON.parse(req.responseText));
+        } catch (e) {
+          message = null;
+        }
+        if (message) {
+          send(message, 'Weather');
+        } else {
+          console.log('Weather: unexpected response ' + req.status);
+        }
+      };
+      req.onerror = function() {
+        console.log('Weather: request failed');
+      };
+      // Two decimals (about 1 km) is plenty for weather and shares less.
+      req.open('GET', URL + '&latitude=' + lat.toFixed(2) + '&longitude=' + lon.toFixed(2));
+      req.send();
+    }
+    if (needSun) {
+      send(sunMessage(new Date(), lat, lon), 'Sun', sendWeather);
+    } else {
+      sendWeather();
+    }
   }, function(err) {
     console.log('Sky: no location (' + (err && err.message) + ')');
   }, { timeout: 15000, maximumAge: 30 * 60 * 1000 });

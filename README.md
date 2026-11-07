@@ -1,12 +1,12 @@
 # Hearth
 
-A Pebble watch face that shows the time as four large digits (HH over MM), each
-one a window onto a live fire. Wherever a digit is you see flames; everywhere
-else the screen is black. The fire is the
-[PSX Doom fire](https://fabiensanglard.net/doom_fire_psx/), ported faithfully
-and simulated live on every platform. On B&W watches it is drawn with ordered dithering. Emery and Flint
-can add a crackling sound, and Emery's RGB backlight can flicker with the
-flames.
+A Pebble watch face that shows the time as four large digits (HH over MM),
+each one a window onto a live fire. Wherever a digit is you see flames;
+everywhere else the screen is black. The fire is the [PSX Doom
+fire](https://fabiensanglard.net/doom_fire_psx/), ported faithfully and
+simulated live on every platform. On B&W watches it is drawn with ordered
+dithering. Emery and Flint can add a crackling sound, and Emery's RGB
+backlight can flicker with the flames.
 
 | basalt | chalk | emery | gabbro |
 |---|---|---|---|
@@ -85,8 +85,9 @@ between taps. With Animate: On tap, the same tap also wakes the face.
   the fire builds up through dusk and dies down through dawn. The phone
   computes sunrise and sunset from your location with the sunrise equation
   that NOAA's calculator uses (accurate to a few minutes, no network). Polar
-  night and midnight sun are handled. The watch recomputes the height every
-  minute, so it follows the sun even when the phone is away.
+  night, midnight sun, and a sunset after midnight (far north in summer) are
+  handled. The watch recomputes the height every minute, so it follows the
+  sun even when the phone is away.
 - **Outside temperature.** The colder it is, the higher the fire: height 10 at
   -10 °C or below, 3 at 30 °C or above, linear in between. It never drops
   below 3, because lower heights fade the hours to embers and make the time
@@ -99,13 +100,18 @@ under 6 km/h counts as calm (0), 6-20 km/h as a breeze (±1), and anything
 stronger as strong (±2).
 
 Weather comes from [Open-Meteo](https://open-meteo.com/): free, no API key,
-data licensed CC BY 4.0. The phone asks for location every 30 minutes, only
-while one of these settings is on, and rounds it to two decimals (about 1 km)
-before sending it to Open-Meteo. Sun times never leave the phone. The phone
-maps everything to the face's units (`src/pkjs/sky.js`), so the mapping can
-change without a watch update. The watch keeps the last values across
-restarts, and falls back to the Flame height and Wind settings until the
-first values arrive. The app declares the `location` capability.
+data licensed CC BY 4.0. The watch asks the phone for what its settings need:
+sun times, weather or both. It asks a few seconds after starting, after a
+settings change, and every 30 minutes, and only while one of these settings is
+on. The watch decides, not the phone's copy of the settings, so this keeps
+working on a new phone. Sun and weather updates never wake a face that has
+frozen (Animate: On tap). The phone looks up the location for each request,
+and rounds it to two decimals (about 1 km) before sending it to Open-Meteo.
+Sun times never leave the phone. The phone maps everything to the face's units
+(`src/pkjs/sky.js`), so the mapping can change without a watch update. The
+watch keeps the last values across restarts, and falls back to the Flame
+height and Wind settings until the first values arrive. The app declares the
+`location` capability.
 
 ### Why there is no "blow on the fire" (microphone)
 
@@ -307,13 +313,18 @@ the requested tip heat. They also check that stoke raises the fire, that live
 changes of height, wind and stoke stay safe, and that degenerate widths do not
 crash.
 
+`make` also runs `test_daylight`, which checks the sunrise and sunset ramp:
+an ordinary day, a sunset after midnight, a sunrise before it, polar night and
+midnight sun.
+
 ```sh
 TZ=Europe/Amsterdam node tools/host/test_sky.js
 ```
 
 This tests the phone side: the weather mapping against a response in
 Open-Meteo's format, and sun times against published tables (Amsterdam at
-both solstices, Tromsø's polar night and midnight sun).
+both solstices, Reykjavik's midsummer sunset after midnight, Tromsø's polar
+night and midnight sun).
 
 ## Credits
 

@@ -19,30 +19,24 @@ function toInt(key, value) {
   return parseInt(value, 10) || 0;
 }
 
-// Clay keeps the last saved values in localStorage. Height source:
-// 0 manual, 1 outside temperature, 2 sun.
-function saved() {
-  try {
-    return JSON.parse(localStorage.getItem('clay-settings')) || {};
-  } catch (e) {
-    return {};
-  }
-}
-
-function updateSky(settings) {
-  var source = parseInt(settings.HeightSource, 10) || 0;
-  sky.update(source === 2, source === 1 || !!settings.WindFollowsWeather);
-}
-
-Pebble.addEventListener('ready', function() {
-  updateSky(saved());
-});
-
-// The watch asks every half hour while a setting uses the sky.
+// The watch asks for what its own settings need (bit 1: sun times, bit 2:
+// weather): after a settings change, shortly after starting, and every half
+// hour. Going by the watch rather than this phone's copy of the settings
+// keeps working on a new phone or after the app's data is cleared.
+// Requests that arrive close together (at launch and after a settings
+// change) are merged into one location lookup and one round of messages.
+var pendingNeeds = 0;
 Pebble.addEventListener('appmessage', function(e) {
-  if (e.payload && e.payload.SkyRequest !== undefined) {
-    updateSky(saved());
+  var needs = e.payload && e.payload.SkyRequest;
+  if (typeof needs !== 'number' || needs <= 0) return;
+  if (!pendingNeeds) {
+    setTimeout(function() {
+      var n = pendingNeeds;
+      pendingNeeds = 0;
+      sky.update((n & 1) !== 0, (n & 2) !== 0);
+    }, 1000);
   }
+  pendingNeeds |= needs;
 });
 
 Pebble.addEventListener('showConfiguration', function() {
@@ -61,7 +55,6 @@ Pebble.addEventListener('webviewclosed', function(e) {
   });
   Pebble.sendAppMessage(message, function() {
     console.log('Settings sent');
-    updateSky(saved());
   }, function(err) {
     console.log('Settings failed: ' + JSON.stringify(err));
   });

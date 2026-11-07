@@ -101,6 +101,17 @@ static int8_t base_wind(void) {
 }
 #endif
 
+// What the sky settings need from the phone (SKY_NEED_* bits).
+static uint8_t sky_needs(void) {
+  uint8_t needs = 0;
+  if (s_settings.height_source == HeightSun) needs |= SKY_NEED_SUN;
+  if (s_settings.height_source == HeightWeather) needs |= SKY_NEED_WEATHER;
+#if defined(PBL_COLOR)
+  if (s_settings.weather_wind) needs |= SKY_NEED_WEATHER;
+#endif
+  return needs;
+}
+
 static void configure_fire(void) {
   if (!s_fire) {
     return;
@@ -111,36 +122,49 @@ static void configure_fire(void) {
 #endif
 }
 
-// Destroys and recreates the fire for the current window width and
-// resolution. (Its rows do not depend on the window: they are stretched over
-// whatever height the digits take.)
-// The old fire is freed first so a fine grid can use its memory. If the
-// requested size does not fit, coarser sizes are tried, and finally the
-// previous size, so a failed malloc never leaves the face without flames
-// (or crashes it).
-static void rebuild_fire(void) {
-  uint8_t previous = s_cell_shift;
-  fire_destroy(s_fire);
-  s_fire = NULL;
-  GSize win = s_layout.window.size;
-  for (uint8_t shift = wanted_cell_shift(); shift <= 2 && !s_fire; shift++) {
+static Fire *create_fire(uint16_t window_w) {
+  for (uint8_t shift = wanted_cell_shift(); shift <= 2; shift++) {
     uint16_t cell = 1 << shift;
-    s_fire = fire_create((win.w + cell - 1) >> shift, rand());
-    if (s_fire) s_cell_shift = shift;
+    Fire *fire = fire_create((window_w + cell - 1) >> shift, rand());
+    if (fire) {
+      s_cell_shift = shift;
+      return fire;
+    }
   }
-  if (!s_fire) {
-    uint16_t cell = 1 << previous;
-    s_fire = fire_create((win.w + cell - 1) >> previous, rand());
-    if (s_fire) s_cell_shift = previous;
+  return NULL;
+}
+
+// Replaces the fire with one for the current window width and resolution.
+// (Its rows do not depend on the window: they are stretched over whatever
+// height the digits take.) The new fire is made while the old one still
+// exists, so if the heap cannot fit it at the requested size or any coarser
+// one, the face keeps burning with the old fire. Only if that fails too is
+// the old one freed to make room for a retry; a fine grid that fits on its
+// own but not next to the old one still gets made that way.
+static void rebuild_fire(void) {
+  uint16_t window_w = s_layout.window.size.w;
+  uint8_t old_shift = s_cell_shift;
+  Fire *fire = create_fire(window_w);
+  if (!fire && s_fire) {
+    fire_destroy(s_fire);
+    s_fire = NULL;
+    fire = create_fire(window_w);
   }
-  if (s_fire) {
-    s_fire_window_w = win.w;
+  if (fire) {
+    fire_destroy(s_fire);
+    s_fire = fire;
     configure_fire();
+    APP_LOG(APP_LOG_LEVEL_INFO, "fire %d px cells, heap free %d",
+            1 << s_cell_shift, (int)heap_bytes_free());
+  } else if (s_fire) {
+    s_cell_shift = old_shift;
+    APP_LOG(APP_LOG_LEVEL_WARNING, "no memory for a new fire; keeping the old one");
   } else {
     APP_LOG(APP_LOG_LEVEL_ERROR, "no memory for the fire");
   }
-  APP_LOG(APP_LOG_LEVEL_INFO, "fire %d px cells, heap free %d",
-          1 << s_cell_shift, (int)heap_bytes_free());
+  // Remember the width even on failure, so the minute tick does not retry
+  // (and log) every minute; a settings change retries.
+  s_fire_window_w = window_w;
 }
 
 // ---------------------------------------------------------------------------
@@ -387,16 +411,22 @@ static void apply_settings(void) {
 static void inbox_received(DictionaryIterator *iter, void *context) {
   bool sky = sky_from_message(iter);
   bool settings = settings_from_message(&s_settings, iter);
-  if (!sky && !settings) {
-    return;
-  }
   if (settings) {
     settings_save(&s_settings);
-  }
-  if (s_focused) {
-    apply_settings();
-  } else {
-    s_settings_pending = true;
+    if (s_focused) {
+      apply_settings();
+    } else {
+      s_settings_pending = true;
+    }
+    // Settings that now use the sky get their first values without waiting
+    // for the half-hour tick.
+    sky_request(sky_needs());
+  } else if (sky) {
+    // Weather and sun times only change the fire's height and wind. They
+    // must not go through apply_settings, which would wake a face that is
+    // frozen (Animate: On tap) every half hour, backlight and crackle too.
+    configure_fire();
+    layer_mark_dirty(s_canvas);
   }
 }
 
@@ -412,9 +442,8 @@ static void tick_handler(struct tm *t, TimeUnits changed) {
   if (s_settings.flare) {
     flare(FLARE_HEAT);
   }
-  bool uses_sky = s_settings.height_source != HeightManual || s_settings.weather_wind;
-  if (uses_sky && t->tm_min % SKY_EVERY_MIN == 0) {
-    sky_request();
+  if (t->tm_min % SKY_EVERY_MIN == 0) {
+    sky_request(sky_needs());
   }
   if (s_settings.height_source == HeightSun) {
     configure_fire();  // follow the sun through dusk and dawn
@@ -458,6 +487,12 @@ static void window_unload(Window *window) {
   s_canvas = NULL;
 }
 
+// The phone's JavaScript is not ready the moment the face starts, so ask for
+// sky values a few seconds in.
+static void first_sky_request(void *context) {
+  sky_request(sky_needs());
+}
+
 static void init(void) {
   srand(time(NULL));
   settings_load(&s_settings);
@@ -496,6 +531,7 @@ static void init(void) {
   }
 
   apply_settings();
+  app_timer_register(5000, first_sky_request, NULL);
   APP_LOG(APP_LOG_LEVEL_INFO, "started, heap free %d", (int)heap_bytes_free());
 }
 

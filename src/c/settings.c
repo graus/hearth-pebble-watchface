@@ -96,7 +96,7 @@ void settings_save(const Settings *s) {
 
 // The phone sends int32 values, but accept any integer width or a decimal
 // string so a hand-written config page cannot crash the face.
-static bool read_int(DictionaryIterator *iter, uint32_t key, int32_t *out) {
+bool settings_read_int(DictionaryIterator *iter, uint32_t key, int32_t *out) {
   Tuple *t = dict_find(iter, key);
   if (!t) {
     return false;
@@ -123,24 +123,24 @@ static uint8_t rgb_to_argb8(int32_t rgb) {
 bool settings_from_message(Settings *s, DictionaryIterator *iter) {
   bool any = false;
   int32_t v;
-  if (read_int(iter, MESSAGE_KEY_FrameRate, &v)) { s->fps = clamp_fps(v); any = true; }
-  if (read_int(iter, MESSAGE_KEY_Animate, &v)) { s->animate = v != 0; any = true; }
-  if (read_int(iter, MESSAGE_KEY_Resolution, &v)) { s->resolution = clamp(v, 0, 2); any = true; }
-  if (read_int(iter, MESSAGE_KEY_FlameHeight, &v)) { s->flame_height = clamp(v, 1, 10); any = true; }
-  if (read_int(iter, MESSAGE_KEY_Wind, &v)) { s->wind = clamp(v, -2, 2); any = true; }
-  if (read_int(iter, MESSAGE_KEY_Theme, &v)) { s->theme = clamp(v, 0, ThemeCount - 1); any = true; }
-  if (read_int(iter, MESSAGE_KEY_CustomEmber, &v)) { s->custom[0] = rgb_to_argb8(v); any = true; }
-  if (read_int(iter, MESSAGE_KEY_CustomFlame, &v)) { s->custom[1] = rgb_to_argb8(v); any = true; }
-  if (read_int(iter, MESSAGE_KEY_CustomHot, &v)) { s->custom[2] = rgb_to_argb8(v); any = true; }
-  if (read_int(iter, MESSAGE_KEY_Flare, &v)) { s->flare = v != 0; any = true; }
-  if (read_int(iter, MESSAGE_KEY_TiltWind, &v)) { s->tilt_wind = v != 0; any = true; }
-  if (read_int(iter, MESSAGE_KEY_Backlight, &v)) { s->backlight = v != 0; any = true; }
-  if (read_int(iter, MESSAGE_KEY_Flicker, &v)) { s->flicker = clamp(v, 0, 100); any = true; }
-  if (read_int(iter, MESSAGE_KEY_Crackle, &v)) { s->crackle = v != 0; any = true; }
-  if (read_int(iter, MESSAGE_KEY_Volume, &v)) { s->volume = clamp(v, 1, 10); any = true; }
-  if (read_int(iter, MESSAGE_KEY_Stoke, &v)) { s->stoke = v != 0; any = true; }
-  if (read_int(iter, MESSAGE_KEY_HeightSource, &v)) { s->height_source = clamp(v, 0, HeightSourceCount - 1); any = true; }
-  if (read_int(iter, MESSAGE_KEY_WindFollowsWeather, &v)) { s->weather_wind = v != 0; any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_FrameRate, &v)) { s->fps = clamp_fps(v); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Animate, &v)) { s->animate = v != 0; any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Resolution, &v)) { s->resolution = clamp(v, 0, 2); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_FlameHeight, &v)) { s->flame_height = clamp(v, 1, 10); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Wind, &v)) { s->wind = clamp(v, -2, 2); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Theme, &v)) { s->theme = clamp(v, 0, ThemeCount - 1); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_CustomEmber, &v)) { s->custom[0] = rgb_to_argb8(v); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_CustomFlame, &v)) { s->custom[1] = rgb_to_argb8(v); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_CustomHot, &v)) { s->custom[2] = rgb_to_argb8(v); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Flare, &v)) { s->flare = v != 0; any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_TiltWind, &v)) { s->tilt_wind = v != 0; any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Backlight, &v)) { s->backlight = v != 0; any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Flicker, &v)) { s->flicker = clamp(v, 0, 100); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Crackle, &v)) { s->crackle = v != 0; any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Volume, &v)) { s->volume = clamp(v, 1, 10); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Stoke, &v)) { s->stoke = v != 0; any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_HeightSource, &v)) { s->height_source = clamp(v, 0, HeightSourceCount - 1); any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_WindFollowsWeather, &v)) { s->weather_wind = v != 0; any = true; }
   return any;
 }
 

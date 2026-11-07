@@ -12,8 +12,14 @@ void sky_load(void);
 // message carried any.
 bool sky_from_message(DictionaryIterator *iter);
 
-// Asks the phone for fresh values. Fails quietly if the phone is away.
-void sky_request(void);
+// What the watch asks the phone for (bits of the SkyRequest value).
+#define SKY_NEED_SUN 1
+#define SKY_NEED_WEATHER 2
+
+// Asks the phone for fresh values of what `needs` names. The watch's own
+// settings decide this, not the phone's copy of them, which can be missing
+// or stale (new phone, cleared app data). Fails quietly if the phone is away.
+void sky_request(uint8_t needs);
 
 // The last weather received, if any: wind -2..2, flame height 1..10.
 bool sky_weather(int8_t *wind, uint8_t *flame_height);

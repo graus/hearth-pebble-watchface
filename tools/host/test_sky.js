@@ -44,6 +44,15 @@ near(dec.set, 16, 29, 'Amsterdam December 21 sunset');
 // Tromso (69.65 N): polar night in December, midnight sun in June.
 assert.deepStrictEqual(sky.sunTimes(new Date(2026, 11, 21), 69.65, 18.96), { rise: 0, set: 0 });
 assert.deepStrictEqual(sky.sunTimes(new Date(2026, 5, 21), 69.65, 18.96), { rise: 0, set: 1440 });
+// Reykjavik (64.15 N, 21.94 W) at midsummer: sunrise 02:55, sunset 00:03
+// the next day. The sunset must stay after midnight (1443), not be cut to
+// 1440, so the flames rise at the real dusk.
+process.env.TZ = 'Atlantic/Reykjavik';
+var rvk = sky.sunTimes(new Date(2026, 5, 21), 64.15, -21.94);
+near(rvk.rise, 2, 55, 'Reykjavik June 21 sunrise');
+near(rvk.set, 24, 3, 'Reykjavik June 21 sunset (after midnight)');
+assert.ok(rvk.set > 1440, 'sunset after midnight is kept past 1440');
+process.env.TZ = 'Europe/Amsterdam';
 assert.deepStrictEqual(sky.sunMessage(new Date(2026, 5, 21), 52.37, 4.89),
                        { SunRise: june.rise, SunSet: june.set });
 console.log('sky: all tests passed (June ' + june.rise + '-' + june.set + ', December ' +
