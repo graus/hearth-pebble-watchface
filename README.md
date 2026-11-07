@@ -343,10 +343,9 @@ Before you publish, check these:
   first (`pebble install --phone <phone IP>` with the Pebble app's developer
   connection on): the settings page, live weather, and on emery the
   backlight and crackle.
-- **No source link.** The repository is private, so the script sends no source
-  URL. Without one, pebble-tool would use the git remote, so the script hides
-  git from it. Set `HEARTH_SOURCE_URL` once the repository is public, and add
-  a LICENSE first.
+- **Source link.** The listing links to
+  https://github.com/graus/hearth-pebble-watchface; set `HEARTH_SOURCE_URL`
+  to use another.
 - **Category.** The script uses the store's default watchface category. You
   can change it, the description and the screenshots later on the developer
   dashboard.
@@ -403,6 +402,8 @@ night and midnight sun).
 - Weather data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0).
 
 ## License notes
+
+Hearth's code is under the [MIT License](LICENSE).
 
 The digits are rendered from **Montserrat ExtraBold** (Copyright 2024 The
 Montserrat.Git Project Authors), licensed under the

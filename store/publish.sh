@@ -8,10 +8,8 @@
 # --is-published flag is ignored), so this goes LIVE straight away. Test on a
 # real watch first. The script asks for confirmation before uploading.
 #
-# Source URL: the repository is private, so no source link is sent unless you
-# set HEARTH_SOURCE_URL (e.g. once the repo is public and has a LICENSE).
-# Without it, pebble-tool would fall back to the git remote, so the publish
-# step runs with git's config hidden from it.
+# Source URL: the public repository, unless HEARTH_SOURCE_URL overrides it.
+# (Passed explicitly so it never depends on how this clone's remote is set.)
 set -eu
 cd "$(dirname "$0")/.."
 
@@ -39,9 +37,4 @@ set -- --non-interactive \
   --icon-large store/icon-144.png \
   --screenshots store/screenshots/*.gif store/screenshots/*.png
 
-if [ -n "${HEARTH_SOURCE_URL:-}" ]; then
-  pebble publish "$@" --source "$HEARTH_SOURCE_URL"
-else
-  # No source: stop pebble-tool from reading the (private) git remote.
-  GIT_DIR=/nonexistent pebble publish "$@"
-fi
+pebble publish "$@" --source "${HEARTH_SOURCE_URL:-https://github.com/graus/hearth-pebble-watchface}"
