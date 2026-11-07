@@ -429,9 +429,6 @@ static void apply_settings(void) {
   } else if (!want_taps && s_tap_subscribed) {
     accel_tap_service_unsubscribe();
 #if defined(PBL_TOUCH)
-  touch_service_unsubscribe();
-#endif
-#if defined(PBL_TOUCH)
     touch_service_unsubscribe();
 #endif
     s_tap_subscribed = false;
@@ -602,6 +599,9 @@ static void deinit(void) {
   update_running();
   if (s_idle_timer) app_timer_cancel(s_idle_timer);
   accel_tap_service_unsubscribe();
+#if defined(PBL_TOUCH)
+  touch_service_unsubscribe();
+#endif
   tick_timer_service_unsubscribe();
   app_focus_service_unsubscribe();
   window_destroy(s_window);
