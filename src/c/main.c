@@ -377,7 +377,8 @@ static void wake(void) {
   update_running();
 }
 
-static void tap_handler(AccelAxisType axis, int32_t direction) {
+// A tap wakes a frozen face (Animate: after a tap) and stokes the fire.
+static void on_tap(void) {
   if (s_settings.animate == AnimateOnTap) {
     wake();
   }
@@ -385,6 +386,21 @@ static void tap_handler(AccelAxisType axis, int32_t direction) {
     flare(STOKE_HEAT);
   }
 }
+
+// The accelerometer's tap: a sharp flick of the wrist or knock on the watch.
+static void tap_handler(AccelAxisType axis, int32_t direction) {
+  on_tap();
+}
+
+#if defined(PBL_TOUCH)
+// On a touchscreen (Pebble Time 2, Round 2) a finger on the screen is the
+// natural tap; the accelerometer does not register it.
+static void touch_handler(const TouchEvent *event, void *context) {
+  if (event->type == TouchEvent_Touchdown) {
+    on_tap();
+  }
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -403,9 +419,18 @@ static void apply_settings(void) {
   bool want_taps = s_settings.animate == AnimateOnTap || s_settings.stoke;
   if (want_taps && !s_tap_subscribed) {
     accel_tap_service_subscribe(tap_handler);
+#if defined(PBL_TOUCH)
+    touch_service_subscribe(touch_handler, NULL);
+#endif
     s_tap_subscribed = true;
   } else if (!want_taps && s_tap_subscribed) {
     accel_tap_service_unsubscribe();
+#if defined(PBL_TOUCH)
+  touch_service_unsubscribe();
+#endif
+#if defined(PBL_TOUCH)
+    touch_service_unsubscribe();
+#endif
     s_tap_subscribed = false;
   }
   // Tap mode starts awake so the change is visible at once.

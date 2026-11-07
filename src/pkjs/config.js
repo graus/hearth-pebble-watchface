@@ -115,7 +115,7 @@ module.exports = [
         messageKey: 'Animate',
         label: 'Flames move',
         defaultValue: '0',
-        description: '"After a tap" freezes the fire 30 seconds after you last tap or flick the watch, and a tap brings it back to life. It saves by far the most battery.',
+        description: '"After a tap" freezes the fire 30 seconds after the last tap, and a tap brings it back to life. A tap is a touch on the screen (Pebble Time 2, Round 2) or a sharp flick of the wrist. It saves by far the most battery.',
         options: [
           { label: 'Always', value: '0' },
           { label: 'For 30 seconds after a tap', value: '1' }
@@ -126,7 +126,7 @@ module.exports = [
         messageKey: 'Stoke',
         label: 'Tap to stoke',
         defaultValue: true,
-        description: 'Tap the watch or flick your wrist and the flames leap up, then settle back over a few seconds.'
+        description: 'Touch the screen (Pebble Time 2, Round 2) or flick your wrist sharply, and the flames leap up, then settle back over a few seconds.'
       },
       {
         type: 'toggle',
