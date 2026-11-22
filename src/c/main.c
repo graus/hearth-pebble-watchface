@@ -59,6 +59,7 @@ static bool s_running;           // focused && awake: frames are being produced
 #if defined(PBL_COLOR)
 static bool s_tilt_subscribed;
 #endif
+static bool s_battery_subscribed;
 
 static uint32_t s_profile_frames;
 static uint32_t s_profile_step_ms;
@@ -82,11 +83,15 @@ static uint8_t wanted_cell_shift(void) {
 #endif
 }
 
-// The flame height comes from the setting, the outside temperature or the
-// sun, falling back to the setting until the phone has sent the values.
+// The flame height comes from the setting, the outside temperature, the sun
+// or the battery, falling back to the setting until the phone has sent the
+// sky values. The battery is read on the watch, so it needs no phone.
 static uint8_t flame_height(void) {
   int8_t wind;
   uint8_t height;
+  if (s_settings.height_source == HeightBattery) {
+    return settings_battery_height(battery_state_service_peek().charge_percent);
+  }
   if (s_settings.height_source == HeightWeather && sky_weather(&wind, &height)) {
     return height;
   }
@@ -405,6 +410,15 @@ static void touch_handler(const TouchEvent *event, void *context) {
 }
 #endif
 
+// The charge changed (in steps of 10 %), or the charger was plugged in or
+// out: the fire follows the charge.
+// Like the sky values this only sets the height, and does not wake a frozen
+// face.
+static void battery_handler(BatteryChargeState state) {
+  configure_fire();
+  layer_mark_dirty(s_canvas);
+}
+
 // ---------------------------------------------------------------------------
 // Settings
 
@@ -433,6 +447,16 @@ static void apply_settings(void) {
 #endif
     s_tap_subscribed = false;
   }
+  // The battery service is event driven too, and only needed when the
+  // battery sets the flame height.
+  bool want_battery = s_settings.height_source == HeightBattery;
+  if (want_battery && !s_battery_subscribed) {
+    battery_state_service_subscribe(battery_handler);
+  } else if (!want_battery && s_battery_subscribed) {
+    battery_state_service_unsubscribe();
+  }
+  s_battery_subscribed = want_battery;
+
   // Tap mode starts awake so the change is visible at once.
   if (s_settings.animate == AnimateOnTap) {
     if (!s_idle_timer) {
@@ -582,7 +606,7 @@ static void init(void) {
 
   app_message_register_inbox_received(inbox_received);
   app_message_register_inbox_dropped(inbox_dropped);
-  // 23 int32 keys (16 settings, 6 sky values, 1 request) at about 11 bytes
+  // 23 int32 keys (18 settings, 4 sky values, 1 request) at about 11 bytes
   // each, plus the dictionary header.
   const uint32_t inbox = 23 * 11 + 16;
   if (app_message_open(inbox, 64) != APP_MSG_OK) {
@@ -602,6 +626,7 @@ static void deinit(void) {
 #if defined(PBL_TOUCH)
   touch_service_unsubscribe();
 #endif
+  if (s_battery_subscribed) battery_state_service_unsubscribe();
   tick_timer_service_unsubscribe();
   app_focus_service_unsubscribe();
   window_destroy(s_window);

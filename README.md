@@ -21,6 +21,8 @@ fire that responds to the world around it:
   (color watches).
 - **Time of day:** low flames by day, high at night, rising through dusk and
   dying down at dawn, from your local sunrise and sunset.
+- **Battery:** a full battery is a roaring fire that burns down as the
+  battery drains, and is fed again on the charger.
 - **Touch and motion:** touch the screen (Pebble Time 2, Round 2) or flick
   your wrist to stoke the fire, and on color watches tilt it and the flames
   stay upright, like a candle's.
@@ -61,7 +63,7 @@ back.
 
 | Section | Setting | Values | Default | Platforms |
 |---|---|---|---|---|
-| Flame height | Set by | me, outside temperature, time of day | me | all |
+| Flame height | Set by | me, outside temperature, time of day, battery | me | all |
 | | Flame height | 1-10 (tip heat 0-20, 5 = 9) | 5 | all |
 | Wind | Set by | me, local wind | me | color |
 | | Wind | -2 .. +2 (0 upright) | 0 | color |
@@ -106,7 +108,7 @@ tap, the same tap also wakes the face.
 
 ### Flame height and wind from outside
 
-Flame height can be **set by** two things outside:
+Flame height can be **set by** three things outside your control:
 
 - **Time of day.** Low flames by day (height 3) and high at night (height 8). The
   height ramps linearly over an hour centered on sunrise and on sunset, so
@@ -120,6 +122,13 @@ Flame height can be **set by** two things outside:
   -10 °C or below, 3 at 30 °C or above, linear in between. It never drops
   below 3, because lower heights fade the hours to embers and make the time
   hard to read.
+- **Battery.** A full battery is a full fire (height 10), and the fire burns
+  down with the charge to height 3 on an empty battery, the same floor as
+  the temperature's, so the time stays readable to the end. On the charger
+  the fire builds back up as the charge rises. The watch reads its own
+  battery, so this needs no phone or network, and the battery service only
+  wakes the face when the charge changes (in steps of 10 %) or the charger
+  is plugged in or out.
 
 Wind can be **set by** the **local wind** (color watches): the flames lean with the local
 wind. The watch has no compass, so wind is drawn as on a map: the east-west
@@ -193,8 +202,9 @@ setting runs from 10 to 100 % of the speaker.
     the digit window, whatever its height. The decay per row depends on the
     `+ 1`, because Doom's column order lets heat written to the right spread
     again in the same frame, so rows come from a table measured per wind on
-    the host. Changing the flame height (from the setting, the sun or the
-    temperature) only changes the row count. The algorithm is untouched.
+    the host. Changing the flame height (from the setting, the sun, the
+    temperature or the battery) only changes the row count. The algorithm is
+    untouched.
   - **Wind = Doom's `+ 1`.** Each wind level picks the offset in Doom's
     `dst = src - randIdx + 1`. Measured on the host, the flames drift -1.76,
     -0.70, +0.18, +1.05 and +2.02 cells per row for wind -2 to +2: 0 stands
