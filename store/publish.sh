@@ -8,6 +8,13 @@
 # --is-published flag is ignored), so this goes LIVE straight away. Test on a
 # real watch first. The script asks for confirmation before uploading.
 #
+# For an app that already exists, pebble-tool 5.2 sends only the PBW, the
+# release notes and the screenshots: --description is used only when the
+# app is first created, so a changed store/description.txt must be pasted
+# into the dashboard by hand (the script reminds you). Screenshots replace
+# the listing's set; without --replace-screenshots they would be appended
+# and every image would show twice.
+#
 # Source URL: the public repository, unless HEARTH_SOURCE_URL overrides it.
 # (Passed explicitly so it never depends on how this clone's remote is set.)
 set -eu
@@ -59,6 +66,11 @@ set -- --non-interactive \
   --release-notes "$(cat store/release-notes.txt)" \
   --icon-small store/icon-80.png \
   --icon-large store/icon-144.png \
-  --screenshots store/screenshots/*.gif store/screenshots/*.png
+  --screenshots store/screenshots/*.gif store/screenshots/*.png \
+  --replace-screenshots
 
 pebble publish "$@" --source "${HEARTH_SOURCE_URL:-https://github.com/graus/hearth-pebble-watchface}"
+
+echo
+echo "The store keeps the description it had: if store/description.txt changed,"
+echo "paste it into the listing at https://appstore-api.repebble.com/dashboard"
