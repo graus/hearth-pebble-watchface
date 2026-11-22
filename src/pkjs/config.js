@@ -23,11 +23,12 @@ module.exports = [
         messageKey: 'HeightSource',
         label: 'Set by',
         defaultValue: '0',
-        description: 'Outside temperature: the colder it is, the higher the flames. Time of day: low by day, high at night, rising at sunset and falling at sunrise.',
+        description: 'Outside temperature: the colder it is, the higher the flames. Time of day: low by day, high at night, rising at sunset and falling at sunrise. Battery: a full battery is a roaring fire that dies down to low flames as the battery runs out, and comes back to life as it charges.',
         options: [
           { label: 'Me (slider below)', value: '0' },
           { label: 'Outside temperature', value: '1' },
-          { label: 'Time of day', value: '2' }
+          { label: 'Time of day', value: '2' },
+          { label: 'Battery', value: '3' }
         ]
       },
       {

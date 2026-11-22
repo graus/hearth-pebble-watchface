@@ -144,6 +144,13 @@ bool settings_from_message(Settings *s, DictionaryIterator *iter) {
   return any;
 }
 
+uint8_t settings_battery_height(uint8_t charge_percent) {
+  // The floor matches the temperature's and the sun's: below 3 the hours
+  // fade to black and the time is hard to read, even on an empty battery.
+  int percent = clamp(charge_percent, 0, 100);
+  return 3 + (percent * 7 + 50) / 100;
+}
+
 uint8_t settings_top_heat(uint8_t flame_height) {
   // 1 -> 0, 5 -> 9, 10 -> 20, rounded.
   return ((flame_height - 1) * 20 + 4) / 9;

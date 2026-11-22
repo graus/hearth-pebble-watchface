@@ -25,6 +25,7 @@ typedef enum {
   HeightManual = 0,   // the Flame height setting
   HeightWeather = 1,  // outside temperature: colder is higher
   HeightSun = 2,      // low by day, high at night, ramping at sunrise and sunset
+  HeightBattery = 3,  // full battery, full fire; it dies down as the battery drains
   HeightSourceCount,
 } HeightSource;
 
@@ -60,6 +61,10 @@ bool settings_from_message(Settings *s, DictionaryIterator *iter);
 // Reads one integer from an AppMessage, whatever width and signedness the
 // phone used (or a decimal string). Returns false if the key is missing.
 bool settings_read_int(DictionaryIterator *iter, uint32_t key, int32_t *out);
+
+// Flame height for a battery charge of 0..100 %: 10 when full, down to 3
+// when empty (lower heights fade the hours to black).
+uint8_t settings_battery_height(uint8_t charge_percent);
 
 // Top heat for the fire engine from a 1..10 flame height.
 uint8_t settings_top_heat(uint8_t flame_height);
