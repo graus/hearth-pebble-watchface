@@ -12,4 +12,6 @@
 void flames_configure(const Settings *s);
 
 // window: flame window in screen coordinates (byte-aligned on B&W).
-void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift);
+// invert (the silhouette style): the fire fills everything but the digits,
+// which turn black.
+void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift, bool invert);

@@ -76,7 +76,7 @@ void flames_configure(const Settings *s) {
   }
 }
 
-void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift) {
+void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift, bool invert) {
   GRect fb_bounds = gbitmap_get_bounds(fb);
   int top = window.origin.y, left = window.origin.x;
   int y0 = top > 0 ? top : 0;
@@ -85,6 +85,9 @@ void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift) {
   // Doom's rows are stretched over the whole window height.
   int rows = fire_height(fire);
   int win_h = window.size.h > 0 ? window.size.h : 1;
+  // A fire kept after a failed rebuild can be narrower than the window:
+  // never read past its rows.
+  int x_end = left + (fire_width(fire) << shift) - 1;
   for (int y = y0; y < y1; y++) {
     // Row info gives the real x range of each row, which matters on round
     // screens where rows are shorter than the display width.
@@ -92,11 +95,18 @@ void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift) {
     int x0 = left > info.min_x ? left : info.min_x;
     int x1 = left + window.size.w - 1;
     if (x1 > info.max_x) x1 = info.max_x;
+    if (x1 > x_end) x1 = x_end;
     int cy = (y - top) * rows / win_h;
     const uint8_t *cells = fire_row(fire, cy);
     uint8_t *px = info.data;
-    for (int x = x0; x <= x1; x++) {
-      if (px[x] == GColorWhiteARGB8) px[x] = s_palette[cells[(x - left) >> shift]].argb;
+    if (invert) {
+      for (int x = x0; x <= x1; x++) {
+        px[x] = px[x] == GColorWhiteARGB8 ? GColorBlackARGB8 : s_palette[cells[(x - left) >> shift]].argb;
+      }
+    } else {
+      for (int x = x0; x <= x1; x++) {
+        if (px[x] == GColorWhiteARGB8) px[x] = s_palette[cells[(x - left) >> shift]].argb;
+      }
     }
   }
 }
@@ -134,7 +144,7 @@ void flames_configure(const Settings *s) {
   }
 }
 
-void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift) {
+void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift, bool invert) {
   (void)shift;  // always 4 px cells
   if (gbitmap_get_format(fb) != GBitmapFormat1Bit) {
     return;
@@ -148,6 +158,9 @@ void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift) {
   if (first_byte < 0 || (first_byte + bytes) > bpr) {
     return;
   }
+  // A fire kept after a failed rebuild can be narrower than the window:
+  // never read past its rows (two cells per byte).
+  if (bytes > fire_width(fire) / 2) bytes = fire_width(fire) / 2;
   int y0 = top > 0 ? top : 0;
   int y1 = top + window.size.h;
   if (y1 > fb_bounds.size.h) y1 = fb_bounds.size.h;
@@ -160,9 +173,11 @@ void flames_render(GBitmap *fb, const Fire *fire, GRect window, uint8_t shift) {
     int py = (y - top) & 3;
     uint8_t *row = data + y * bpr + first_byte;
     for (int b = 0; b < bytes; b++) {
-      if (!row[b]) continue;  // all black: nothing to color
-      // White stays white only where the pattern bit is 1.
-      row[b] &= s_dither[cells[2 * b]][py] | (s_dither[cells[2 * b + 1]][py] << 4);
+      if (!invert && !row[b]) continue;  // all black: nothing to color
+      uint8_t pattern = s_dither[cells[2 * b]][py] | (s_dither[cells[2 * b + 1]][py] << 4);
+      // Windows: white stays white only where the pattern bit is 1.
+      // Silhouette: digits turn black; the fire shows everywhere else.
+      row[b] = invert ? (uint8_t)(~row[b] & pattern) : (row[b] & pattern);
     }
   }
 }

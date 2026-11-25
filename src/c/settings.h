@@ -3,7 +3,7 @@
 
 // Bump when the struct layout changes; stored settings with another version
 // are ignored and the defaults used instead.
-#define SETTINGS_VERSION 3
+#define SETTINGS_VERSION 4
 
 typedef enum {
   AnimateAlways = 0,
@@ -19,6 +19,13 @@ typedef enum {
   ThemeCustom,
   ThemeCount,
 } Theme;
+
+// How the digits and the fire combine.
+typedef enum {
+  StyleWindows = 0,    // white digits are windows onto the fire, on black
+  StyleSilhouette = 1, // black digits stand in front of a full-screen fire
+  StyleCount,
+} Style;
 
 // What sets the flame height.
 typedef enum {
@@ -48,6 +55,7 @@ typedef struct __attribute__((__packed__)) {
   uint8_t stoke;          // bool: a tap or shake makes the flames leap
   uint8_t height_source;  // HeightSource (v2: bool "weather", same values)
   uint8_t weather_wind;   // bool: the local wind sets the wind (color only)
+  uint8_t style;          // Style (v4)
 } Settings;
 
 // Loads stored settings or the defaults.

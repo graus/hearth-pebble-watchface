@@ -1,4 +1,5 @@
-// Hearth: the time in four large digits, each a window onto a live fire.
+// Hearth: the time in four large digits, each a window onto a live fire
+// (or, in the silhouette style, standing black in front of one).
 
 #include <pebble.h>
 
@@ -50,6 +51,9 @@ static int16_t s_fire_window_w; // window width the current fire was built for
 
 static Settings s_settings;
 static bool s_settings_pending;  // arrived while unfocused, apply on refocus
+// The style last applied: the layout follows it, so a style that arrives
+// while the face is covered changes nothing until the face comes back.
+static bool s_backdrop;
 
 static AppTimer *s_frame_timer;
 static AppTimer *s_idle_timer;
@@ -152,14 +156,15 @@ static Fire *create_fire(uint16_t window_w) {
 // (Its rows do not depend on the window: they are stretched over whatever
 // height the digits take.) The new fire is made while the old one still
 // exists, so if the heap cannot fit it at the requested size or any coarser
-// one, the face keeps burning with the old fire. Only if that fails too is
-// the old one freed to make room for a retry; a fine grid that fits on its
-// own but not next to the old one still gets made that way.
+// one, the face keeps burning with the old fire, as long as that still
+// covers the window (a new resolution). An old fire too narrow for the
+// window (a new style or digit set) is freed instead to make room for a
+// retry; if even that fails, the face shows plain digits.
 static void rebuild_fire(void) {
   uint16_t window_w = s_layout.window.size.w;
   uint8_t old_shift = s_cell_shift;
   Fire *fire = create_fire(window_w);
-  if (!fire && s_fire) {
+  if (!fire && s_fire && (fire_width(s_fire) << s_cell_shift) < window_w) {
     fire_destroy(s_fire);
     s_fire = NULL;
     fire = create_fire(window_w);
@@ -217,7 +222,7 @@ static void update_layout(void) {
     sizes[i] = s_digits[i] ? gbitmap_get_bounds(s_digits[i]).size : GSize(0, 0);
   }
   GRect bounds = layer_get_bounds(s_canvas);
-  layout_compute(&s_layout, s_digit_set, area, bounds.size.w, sizes);
+  layout_compute(&s_layout, s_digit_set, area, bounds.size.w, sizes, s_backdrop);
   if (s_layout.window.size.w != s_fire_window_w) {
     rebuild_fire();
   }
@@ -256,7 +261,7 @@ static void canvas_update(Layer *layer, GContext *ctx) {
   }
   GBitmap *fb = graphics_capture_frame_buffer(ctx);
   if (fb) {
-    flames_render(fb, s_fire, s_layout.window, s_cell_shift);
+    flames_render(fb, s_fire, s_layout.window, s_cell_shift, s_layout.backdrop);
     graphics_release_frame_buffer(ctx, fb);
   }
   if (s_running && s_profile_frames < PROFILE_FRAMES) {
@@ -425,10 +430,19 @@ static void battery_handler(BatteryChargeState state) {
 static void apply_settings(void) {
   static bool s_tap_subscribed;
   flames_configure(&s_settings);
-  if (!s_fire || wanted_cell_shift() != s_cell_shift) {
+  s_backdrop = s_settings.style == StyleSilhouette;
+  // The style sets the flame window, and so the fire's width: a new width
+  // rebuilds the fire, and then it is not built a second time below.
+  bool rebuilt = false;
+  if (s_canvas) {
+    int16_t old_w = s_fire_window_w;
+    update_layout();
+    rebuilt = s_fire_window_w != old_w;
+  }
+  if (!rebuilt && (!s_fire || wanted_cell_shift() != s_cell_shift)) {
     rebuild_fire();
   } else {
-    configure_fire();
+    configure_fire();  // new height and wind, whatever fire there is
   }
 
   // Taps wake the face (Animate: On tap) and stoke it. The tap service is
@@ -579,6 +593,7 @@ static void first_sky_request(void *context) {
 static void init(void) {
   srand(time(NULL));
   settings_load(&s_settings);
+  s_backdrop = s_settings.style == StyleSilhouette;  // lay out the first frame in it
   sky_load();
   flames_configure(&s_settings);
 #if defined(PBL_SPEAKER)
@@ -606,9 +621,9 @@ static void init(void) {
 
   app_message_register_inbox_received(inbox_received);
   app_message_register_inbox_dropped(inbox_dropped);
-  // 23 int32 keys (18 settings, 4 sky values, 1 request) at about 11 bytes
+  // 24 int32 keys (19 settings, 4 sky values, 1 request) at about 11 bytes
   // each, plus the dictionary header.
-  const uint32_t inbox = 23 * 11 + 16;
+  const uint32_t inbox = 24 * 11 + 16;
   if (app_message_open(inbox, 64) != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "app_message_open failed; settings unavailable");
   }

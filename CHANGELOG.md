@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0 (2026-11-25)
+
+- **Digits in front of the fire.** A new Style setting turns the face
+  inside out: the fire fills the screen, rising from the bottom, and the
+  digits stand black in front of it. It works on every watch (dithered on
+  B&W) and with every other setting. The default stays as before, flames in
+  the digits, and stored settings carry over.
+
 ## 1.1.0 (2026-11-22)
 
 - **Flame height can follow the battery.** A new option under Flame height >

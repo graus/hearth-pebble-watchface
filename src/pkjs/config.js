@@ -13,10 +13,27 @@ module.exports = [
   {
     type: 'section',
     items: [
+      { type: 'heading', defaultValue: 'Style' },
+      {
+        type: 'radiogroup',
+        messageKey: 'Style',
+        label: 'The time',
+        defaultValue: '0',
+        description: 'Flames in the digits: each digit is a window onto the fire, on a black screen. Digits in front of the fire: the fire fills the screen and the digits stand black against it.',
+        options: [
+          { label: 'Flames in the digits', value: '0' },
+          { label: 'Digits in front of the fire', value: '1' }
+        ]
+      }
+    ]
+  },
+  {
+    type: 'section',
+    items: [
       { type: 'heading', defaultValue: 'Flame height' },
       {
         type: 'text',
-        defaultValue: 'How far the flames climb up the digits. Low flames leave the top digits glowing dark red; high flames fill them with fire.'
+        defaultValue: 'How high the fire climbs. Low flames leave the top glowing dark red; high flames fill it with fire.'
       },
       {
         type: 'select',
@@ -35,7 +52,7 @@ module.exports = [
         type: 'slider',
         messageKey: 'FlameHeight',
         label: 'Flame height',
-        description: '1: low, glowing embers. 10: flames reach the top of the digits.',
+        description: '1: low, glowing embers. 10: flames reach the top.',
         defaultValue: 5,
         min: 1,
         max: 10,
