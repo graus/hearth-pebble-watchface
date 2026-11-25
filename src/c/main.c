@@ -1,4 +1,5 @@
-// Hearth: the time in four large digits, each a window onto a live fire.
+// Hearth: the time in four large digits, each a window onto a live fire
+// (or, in the silhouette style, standing black in front of one).
 
 #include <pebble.h>
 
@@ -217,7 +218,8 @@ static void update_layout(void) {
     sizes[i] = s_digits[i] ? gbitmap_get_bounds(s_digits[i]).size : GSize(0, 0);
   }
   GRect bounds = layer_get_bounds(s_canvas);
-  layout_compute(&s_layout, s_digit_set, area, bounds.size.w, sizes);
+  layout_compute(&s_layout, s_digit_set, area, bounds.size.w, sizes,
+                 s_settings.style == StyleSilhouette);
   if (s_layout.window.size.w != s_fire_window_w) {
     rebuild_fire();
   }
@@ -256,7 +258,9 @@ static void canvas_update(Layer *layer, GContext *ctx) {
   }
   GBitmap *fb = graphics_capture_frame_buffer(ctx);
   if (fb) {
-    flames_render(fb, s_fire, s_layout.window, s_cell_shift);
+    // The layout's style, not the settings': settings that arrive while the
+    // face is covered are not laid out until it comes back.
+    flames_render(fb, s_fire, s_layout.window, s_cell_shift, s_layout.backdrop);
     graphics_release_frame_buffer(ctx, fb);
   }
   if (s_running && s_profile_frames < PROFILE_FRAMES) {
@@ -425,10 +429,18 @@ static void battery_handler(BatteryChargeState state) {
 static void apply_settings(void) {
   static bool s_tap_subscribed;
   flames_configure(&s_settings);
-  if (!s_fire || wanted_cell_shift() != s_cell_shift) {
+  // The style sets the flame window, and so the fire's width: a new width
+  // rebuilds the fire, and then it is not built a second time below.
+  bool rebuilt = false;
+  if (s_canvas) {
+    int16_t old_w = s_fire_window_w;
+    update_layout();
+    rebuilt = s_fire_window_w != old_w;
+  }
+  if (!rebuilt && (!s_fire || wanted_cell_shift() != s_cell_shift)) {
     rebuild_fire();
   } else {
-    configure_fire();
+    configure_fire();  // new height and wind, whatever fire there is
   }
 
   // Taps wake the face (Animate: On tap) and stoke it. The tap service is
@@ -606,9 +618,9 @@ static void init(void) {
 
   app_message_register_inbox_received(inbox_received);
   app_message_register_inbox_dropped(inbox_dropped);
-  // 23 int32 keys (18 settings, 4 sky values, 1 request) at about 11 bytes
+  // 24 int32 keys (19 settings, 4 sky values, 1 request) at about 11 bytes
   // each, plus the dictionary header.
-  const uint32_t inbox = 23 * 11 + 16;
+  const uint32_t inbox = 24 * 11 + 16;
   if (app_message_open(inbox, 64) != APP_MSG_OK) {
     APP_LOG(APP_LOG_LEVEL_ERROR, "app_message_open failed; settings unavailable");
   }

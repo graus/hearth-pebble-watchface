@@ -1,7 +1,7 @@
 {
   "name": "hearth",
   "author": "graus",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "keywords": [
     "pebble-app"
   ],
@@ -66,7 +66,8 @@
       "SkyHeight",
       "SunRise",
       "SunSet",
-      "SkyRequest"
+      "SkyRequest",
+      "Style"
     ],
     "resources": {
       "media": [

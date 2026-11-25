@@ -10,7 +10,9 @@ typedef enum {
 
 typedef struct {
   GRect digits[4];  // HH over MM: 0, 1 on the top row, 2, 3 below
-  GRect window;     // flame window: the digit block's bounding box
+  GRect window;     // flame window: the digit block's bounding box, or the
+                    // whole unobstructed area in the silhouette style
+  bool backdrop;    // the silhouette style: the fire fills the window
 } Layout;
 
 // The set to use in an unobstructed area of this height: large when its
@@ -22,5 +24,7 @@ DigitSet layout_choose_set(int area_h);
 // centered vertically. The flame window is derived from the set's worst-case
 // metrics, so it does not change from minute to minute (only with the set or
 // the unobstructed area).
+// With `backdrop` (the silhouette style) the flame window is the whole
+// unobstructed area instead of the digit block.
 void layout_compute(Layout *out, DigitSet set, GRect area, int screen_w,
-                    const GSize digit_sizes[4]);
+                    const GSize digit_sizes[4], bool backdrop);

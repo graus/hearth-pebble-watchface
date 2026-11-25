@@ -16,7 +16,7 @@ DigitSet layout_choose_set(int area_h) {
 }
 
 void layout_compute(Layout *out, DigitSet set, GRect area, int screen_w,
-                    const GSize digit_sizes[4]) {
+                    const GSize digit_sizes[4], bool backdrop) {
   const Metrics *m = &s_metrics[set];
   // When space is still short, give up the row gap first.
   int row_gap = m->row_gap;
@@ -34,6 +34,14 @@ void layout_compute(Layout *out, DigitSet set, GRect area, int screen_w,
     int y = top + row * (m->height + row_gap);
     out->digits[row * 2] = GRect(x, y, a.w, m->height);
     out->digits[row * 2 + 1] = GRect(x + a.w + m->col_gap, y, b.w, m->height);
+  }
+
+  out->backdrop = backdrop;
+  if (backdrop) {
+    // The fire fills the screen, its base at the bottom of the visible area.
+    // (Every B&W screen is 144 px wide, a multiple of 8 as its renderer needs.)
+    out->window = GRect(0, area.origin.y, screen_w, area.size.h);
+    return;
   }
 
   // Every row is at most max_pair_width + gap wide and centered the same

@@ -24,6 +24,7 @@ static const Settings s_defaults = {
   .stoke = 1,
   .height_source = HeightManual,
   .weather_wind = 0,
+  .style = StyleWindows,
 };
 
 static int clamp(int v, int lo, int hi) {
@@ -65,6 +66,7 @@ static void sanitize(Settings *s) {
   s->stoke = !!s->stoke;
   s->height_source = clamp(s->height_source, 0, HeightSourceCount - 1);
   s->weather_wind = !!s->weather_wind;
+  s->style = clamp(s->style, 0, StyleCount - 1);
 }
 
 void settings_load(Settings *s) {
@@ -74,17 +76,23 @@ void settings_load(Settings *s) {
     int read = persist_read_data(SETTINGS_KEY, &stored, sizeof(stored));
     if (read == (int)sizeof(stored) && stored.version == SETTINGS_VERSION) {
       *s = stored;
+    } else if (read == (int)offsetof(Settings, style) && stored.version == 3) {
+      // Version 3 lacked the style: keep the rest, default that.
+      *s = stored;
+      s->style = s_defaults.style;
     } else if (read == (int)offsetof(Settings, weather_wind) && stored.version == 2) {
       // Version 2 had one "weather" toggle for height and wind; its byte
       // becomes the height source (1 is still "weather").
       *s = stored;
       s->weather_wind = s->height_source;
+      s->style = s_defaults.style;
     } else if (read == (int)offsetof(Settings, stoke) && stored.version == 1) {
       // Version 1 lacked the trailing fields: keep the rest, default those.
       *s = stored;
       s->stoke = s_defaults.stoke;
       s->height_source = s_defaults.height_source;
       s->weather_wind = s_defaults.weather_wind;
+      s->style = s_defaults.style;
     }
   }
   sanitize(s);
@@ -141,6 +149,7 @@ bool settings_from_message(Settings *s, DictionaryIterator *iter) {
   if (settings_read_int(iter, MESSAGE_KEY_Stoke, &v)) { s->stoke = v != 0; any = true; }
   if (settings_read_int(iter, MESSAGE_KEY_HeightSource, &v)) { s->height_source = clamp(v, 0, HeightSourceCount - 1); any = true; }
   if (settings_read_int(iter, MESSAGE_KEY_WindFollowsWeather, &v)) { s->weather_wind = v != 0; any = true; }
+  if (settings_read_int(iter, MESSAGE_KEY_Style, &v)) { s->style = clamp(v, 0, StyleCount - 1); any = true; }
   return any;
 }
 

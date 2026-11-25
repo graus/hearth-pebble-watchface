@@ -1,1 +1,1 @@
-New: flame height can follow your battery. A full battery is a roaring fire that burns down as the charge drains, to low flames that keep the time readable on an empty battery, and builds back up on the charger. Pick "Battery" under Flame height > Set by. It is read on the watch, so it needs no phone or network.
+New: a second style. Under Style, pick "Digits in front of the fire" and the fire fills the screen, with the time in black in front of it. The original "Flames in the digits" stays the default, and all other settings work with both.
