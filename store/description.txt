@@ -1,1 +1,16 @@
-The time in four large digits, each one a window onto a live fire, or standing black in front of a fire that fills the screen. Hearth is inspired by Fireplace and draws its flames with the classic PSX Doom fire, computed live on your watch. The Doom fire is simple and efficient enough to respond to the world: the colder it is outside, the higher the flames; they burn low by day and high at night, following your sunrise and sunset; they can burn down with your battery, a roaring fire when it is full and low flames when it is nearly empty; a touch of the screen or a flick of the wrist stokes them; and on color watches they lean with the local wind and stay upright as you tilt your wrist, like a candle. Six color themes (including your own), an "animate after a tap" mode that saves the most battery, a crackling fire sound on Pebble Time 2 and Pebble 2 Duo, and an optional backlight on Pebble Time 2 that flickers with the flames. Works on every Pebble, from the original to Round 2.
+The time, burning.
+
+Four big digits and a live fire. Pick your style: flames seen through the digits, or black digits standing in front of a fire that fills the screen.
+
+The flames are the PSX Doom fire, the burning title screen of Doom on the PlayStation: about ten lines of code that turn a row of heat at the bottom of the screen into rising, flickering flames. It is so simple and cheap that your watch computes every frame of it live, with room to spare for a fire that reacts to you.
+
+The fire responds to your world:
+- The colder it is outside, the higher the flames.
+- Low by day, high at night, following your own sunrise and sunset.
+- A roaring fire on a full battery that burns down as it drains.
+- Tap the screen or flick your wrist to stoke it.
+- On color watches, the flames lean with the local wind and stay upright as you tilt your wrist, like a candle.
+
+Also: six color themes (or make your own), a battery-saving mode that only animates after a tap, a crackling fire sound on Pebble Time 2 and Pebble 2 Duo, and a backlight that flickers with the flames on Pebble Time 2.
+
+Works on every Pebble, from the original to Round 2. Inspired by Fireplace.
